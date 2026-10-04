@@ -60,6 +60,7 @@ jobs:
     - name: Build Release APK and Bundle
       if: steps.check_release.outputs.is_release == 'true'
       run: ./gradlew assembleRelease bundleRelease
+      env:
         RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
         RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
