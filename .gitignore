@@ -1,0 +1,43 @@
+# Gradle
+.gradle/
+build/
+app/build/
+gradle/*
+!gradle/wrapper/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+captures/
+.externalNativeBuild
+.cxx
+
+# Binaries
+*.apk
+*.aab
+
+# Keystores and secrets
+*.jks
+*.base64
+keystore/
+play-service-account.json
+
+# Local SDK and Licenses
+licenses/
+android-sdk/
+
+# Local tooling (Play publish script, not part of the app)
+scripts/
+
+# Python venvs
+.venv/
+
+# Logs and temp
+*.log
+.DS_Store
+.env*
+tmp/
+
+# Local planning/notes docs — never committed to the repo
+docs/

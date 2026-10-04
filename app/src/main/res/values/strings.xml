@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">eAnalizer</string>
+    <string name="hello">Witaj w eAnalizer</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Anuluj</string>
+    <string name="save">Zapisz</string>
+    <string name="close">Zamknij</string>
+    <string name="retry">Ponów</string>
+    <string name="loading">Wczytywanie…</string>
+    <string name="settings">Ustawienia</string>
+    <string name="refresh">Odśwież</string>
+    <string name="back">Wstecz</string>
+    <string name="error_generic">Wystąpił błąd: %1$s</string>
+    <string name="error_network">Brak połączenia z siecią</string>
+</resources>
