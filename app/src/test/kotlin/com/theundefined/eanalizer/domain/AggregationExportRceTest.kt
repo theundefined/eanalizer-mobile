@@ -70,10 +70,11 @@ class AggregationExportRceTest {
                 "2024-10-27 02:15:00a" to 100.0,
             )
         val p = RceAnalysis.hourlyPrices(entries)
+        // dtime is the end of the quarter: 00:15..01:00 -> 00:00
         assertEquals(0.4, p.getValue(at(2024, 7, 1, 0)), eps)
-        assertEquals(0.7, p.getValue(at(2024, 7, 1, 1)), eps)
-        assertEquals(0.8, p.getValue(at(2024, 7, 1, 2)), eps)
+        assertEquals(0.8, p.getValue(at(2024, 7, 1, 1)), eps)
         assertEquals(0.1, p.getValue(at(2024, 10, 27, 2)), eps)
+        assertEquals(3, p.size)
     }
 
     @Test

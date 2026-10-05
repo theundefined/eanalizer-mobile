@@ -36,8 +36,9 @@ object RceAnalysis {
 
     /**
      * Converts PSE `rce-pln` entries (`dtime`, price in zł/MWh, typically 15-min) to hourly mean
-     * prices in zł/kWh. Like pandas `resample("h")`, an entry belongs to the hour it starts in
-     * (e.g. `01:00` goes to 01:00). `a`/`b` DST suffixes in `dtime` are ignored.
+     * prices in zł/kWh. `dtime` is the END of the quarter (00:15 = 00:00-00:15), so it is shifted
+     * back 15 minutes before resampling like pandas `resample("h")` (00:15..01:00 -> 00:00).
+     * `a`/`b` DST suffixes in `dtime` are ignored.
      */
     fun hourlyPrices(entries: List<Pair<String, Double>>): Map<LocalDateTime, Double> =
         entries
@@ -45,7 +46,7 @@ object RceAnalysis {
                 val s = dtime.replace("a", "").replace("b", "").trim().replace('T', ' ')
                 runCatching { LocalDateTime.parse(s, DTIME) }
                     .getOrNull()
-                    ?.let { it.truncatedTo(ChronoUnit.HOURS) to price }
+                    ?.let { it.minusMinutes(15).truncatedTo(ChronoUnit.HOURS) to price }
             }
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, v) -> v.average() / 1000.0 }
