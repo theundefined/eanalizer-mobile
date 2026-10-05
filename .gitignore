@@ -28,7 +28,7 @@ licenses/
 android-sdk/
 
 # Local tooling (Play publish script, not part of the app)
-scripts/
+/scripts/
 
 # Python venvs
 .venv/
@@ -41,3 +41,6 @@ tmp/
 
 # Local planning/notes docs — never committed to the repo
 docs/
+
+# Python bytecode
+__pycache__/
