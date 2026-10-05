@@ -1,15 +1,169 @@
 <resources>
     <string name="app_name">eAnalizer</string>
-    <string name="hello">Welcome to eAnalizer</string>
-    <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
     <string name="save">Save</string>
-    <string name="close">Close</string>
-    <string name="retry">Retry</string>
-    <string name="loading">Loading…</string>
     <string name="settings">Settings</string>
     <string name="refresh">Refresh</string>
     <string name="back">Back</string>
+    <string name="delete">Delete</string>
+    <string name="add">Add</string>
+    <string name="edit">Edit</string>
+
+    <!-- Errors / events -->
     <string name="error_generic">An error occurred: %1$s</string>
     <string name="error_network">No network connection</string>
+    <string name="error_session">Enea session expired — please log in again</string>
+    <string name="error_protocol">Unexpected Enea eBOK response (%1$s). The site may have changed.</string>
+    <plurals name="sync_done">
+        <item quantity="one">Downloaded data for %1$d year</item>
+        <item quantity="other">Downloaded data for %1$d years</item>
+    </plurals>
+    <string name="sync_up_to_date">Data is up to date</string>
+    <string name="syncing_year">Downloading data for %1$d…</string>
+    <string name="syncing">Syncing…</string>
+
+    <!-- Main -->
+    <string name="welcome_title">Welcome to eAnalizer</string>
+    <string name="welcome_text">Log in to Enea eBOK to download hourly meter data. Login happens on Enea\'s own page (with reCAPTCHA and an SMS/e-mail code); the app only keeps the session and the downloaded files.</string>
+    <string name="login">Log in to Enea eBOK</string>
+    <string name="login_again">Log in again</string>
+    <string name="session_expired_card">Enea session expired. Showing stored data — log in to download new data.</string>
+    <string name="data_range">Data: %1$s – %2$s</string>
+    <string name="last_sync">Last sync: %1$s</string>
+    <string name="never">never</string>
+    <string name="customer_label">Customer: %1$s</string>
+    <string name="analysis_period">Analysis period: %1$s – %2$s (%3$d h)</string>
+    <string name="no_data_in_period">No data in the selected period</string>
+
+    <!-- Params -->
+    <string name="params">Parameters</string>
+    <string name="period">Period</string>
+    <string name="period_last_30">30 days</string>
+    <string name="period_last_90">90 days</string>
+    <string name="period_last_365">365 days</string>
+    <string name="period_current_month">Current month</string>
+    <string name="period_previous_month">Previous month</string>
+    <string name="period_current_year">Current year</string>
+    <string name="period_previous_year">Previous year</string>
+    <string name="period_all">All</string>
+    <string name="tariff">Tariff</string>
+    <string name="storage_capacity">Energy storage [kWh]</string>
+    <string name="storage_efficiency">Storage efficiency [%]</string>
+    <string name="settlement">Exported energy settlement</string>
+    <string name="settlement_none">None</string>
+    <string name="settlement_net_metering">Net-metering</string>
+    <string name="settlement_net_billing">Net-billing</string>
+    <string name="net_metering_ratio">Ratio</string>
+    <string name="valuation">Deposit valuation</string>
+    <string name="valuation_rcem">RCEm (monthly)</string>
+    <string name="valuation_rce">RCE (hourly)</string>
+
+    <!-- Summary -->
+    <string name="summary">Summary — %1$s</string>
+    <string name="total_cost">Total cost</string>
+    <string name="energy_cost">Energy cost (variable)</string>
+    <string name="fixed_fees">Fixed fees (%1$d mo.)</string>
+    <string name="consumption_before">Consumption before balancing</string>
+    <string name="export_before">Export before balancing</string>
+    <string name="storage_savings">Energy covered by storage</string>
+    <string name="unused_credit">Unused net-metering credit</string>
+    <string name="zone">Zone</string>
+    <string name="zone_price">Price</string>
+    <string name="from_grid">Import</string>
+    <string name="to_grid">Export</string>
+    <string name="zone_cost">Cost</string>
+    <string name="optimal_capacity">Suggested storage capacity</string>
+    <string name="surplus_days">Days with production surplus</string>
+    <string name="missing_hours">Missing hours in data</string>
+    <string name="nb_energy_cost">Active energy (before deposit)</string>
+    <string name="nb_deposit_value">Deposit value created</string>
+    <string name="nb_covered">Covered by deposit</string>
+    <string name="nb_energy_to_pay">Energy to pay</string>
+    <string name="nb_distribution">Distribution (variable)</string>
+    <string name="nb_refund">Overpayment refund</string>
+    <string name="nb_expired">Expired deposit</string>
+    <string name="nb_deposit_left">Deposit at end of period</string>
+    <string name="nb_missing_rcem">No RCEm prices for: %1$s — exported energy was not valued.</string>
+    <string name="nb_missing_rce">No RCE prices for %1$d hours with export.</string>
+    <string name="nb_prices_unavailable">Could not download PSE prices — the deposit was not valued.</string>
+
+    <!-- Navigation -->
+    <string name="screen_compare">Tariff comparison</string>
+    <string name="screen_rce">RCE market prices</string>
+    <string name="screen_monthly">Monthly summary</string>
+    <string name="screen_data">Daily data</string>
+    <string name="screen_tariffs">Tariffs</string>
+    <string name="export">CSV export</string>
+    <string name="export_simulation">Hourly simulation</string>
+    <string name="export_daily">Daily aggregates</string>
+    <string name="export_monthly">Monthly aggregates</string>
+    <string name="share_title">Share CSV file</string>
+
+    <!-- Compare -->
+    <string name="compare_info">Cost in the selected period with the current storage and settlement settings.</string>
+    <string name="cheapest">Cheapest</string>
+    <string name="difference">+%1$s</string>
+
+    <!-- RCE -->
+    <string name="rce_info">Post-balancing energy valued at hourly RCE market prices (PSE API, available from 07.2024). Prices are stored on the phone.</string>
+    <string name="rce_load">Calculate for %1$s – %2$s</string>
+    <string name="rce_progress">Downloading prices: %1$d / %2$d days</string>
+    <string name="rce_cost">Import cost</string>
+    <string name="rce_revenue">Export revenue</string>
+    <string name="rce_balance">Balance</string>
+    <string name="rce_missing">Hours without price: %1$d</string>
+    <string name="rce_failed_days">Could not download prices for %1$d days</string>
+
+    <!-- Monthly / daily -->
+    <string name="month">Month</string>
+    <string name="legend_consumption">Import</string>
+    <string name="legend_export">Export</string>
+    <string name="chart_hint">Tap a bar to see its values</string>
+    <string name="chart_value">%1$s: import %2$s, export %3$s</string>
+    <string name="before_after_hint">Values before hourly balancing; in brackets — after balancing.</string>
+    <string name="nb_monthly">Net-billing settlement</string>
+    <string name="nb_new_deposit">New deposit</string>
+    <string name="nb_balance">Deposit balance</string>
+    <string name="data_files">Downloaded years: %1$s</string>
+    <string name="missing_hours_list">Missing hours (%1$d)</string>
+    <string name="no_missing_hours">No gaps in data</string>
+    <string name="and_more">…and %1$d more</string>
+
+    <!-- Tariffs -->
+    <string name="tariffs_info">Gross prices zł/kWh; fixed fee zł/month. Hours [from, to), overnight when from &gt; to.</string>
+    <string name="reset_tariffs">Restore defaults</string>
+    <string name="tariff_name">Tariff</string>
+    <string name="zone_name">Zone</string>
+    <string name="day_type">Days</string>
+    <string name="day_all">all</string>
+    <string name="day_weekday">weekdays</string>
+    <string name="day_weekend">weekends/holidays</string>
+    <string name="hour_from">From hour</string>
+    <string name="hour_to">To hour</string>
+    <string name="energy_price">Energy [zł/kWh]</string>
+    <string name="dist_price">Distribution [zł/kWh]</string>
+    <string name="dist_fee">Fixed fee [zł/month]</string>
+    <string name="zone_hours">%1$s, %2$d–%3$d</string>
+    <string name="zone_prices">%1$s + %2$s zł/kWh, %3$s zł/month</string>
+
+    <!-- Settings -->
+    <string name="account">Enea account</string>
+    <string name="email">E-mail</string>
+    <string name="password">Password</string>
+    <string name="credentials_info">Optional — used only to prefill Enea\'s login form and stored encrypted.</string>
+    <string name="password_saved">Password saved (type a new one to change it)</string>
+    <string name="logged_in">Logged in to eBOK</string>
+    <string name="logged_out">Not logged in</string>
+    <string name="logout">Log out</string>
+    <string name="customer">Customer (number)</string>
+    <string name="choose_customer">Choose customer</string>
+    <string name="choose_customer_info">The account has several customers. Choose whose data to download.</string>
+    <string name="force_sync">Download all data again</string>
+    <string name="clear_all">Delete all data</string>
+    <string name="clear_all_confirm">Delete downloaded data, the session and stored credentials?</string>
+    <string name="about">eAnalizer Mobile %1$s — unofficial app, not affiliated with Enea S.A. Results are estimates. GPL-3.0 license.</string>
+
+    <!-- Login -->
+    <string name="login_title">Enea login</string>
+    <string name="login_info">Log in on Enea\'s page (password and SMS/e-mail code). This window closes itself once you are logged in.</string>
 </resources>

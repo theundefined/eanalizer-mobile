@@ -139,7 +139,8 @@ class TariffTable(val zones: List<TariffZone>) {
          * when there is no header); invalid rows are skipped.
          */
         fun parseCsv(text: String): TariffTable {
-            val lines = text.removePrefix("﻿").lines().map { it.trim() }.filter { it.isNotEmpty() }
+            val lines =
+                text.removePrefix("\uFEFF").lines().map { it.trim() }.filter { it.isNotEmpty() }
             if (lines.isEmpty()) return TariffTable(emptyList())
             val names = HEADER.split(',')
             val first = lines[0].split(',').map { it.trim().lowercase() }

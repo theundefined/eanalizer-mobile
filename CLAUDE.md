@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-eAnalizer Mobile is a native Android app (Kotlin, Jetpack Compose/Material 3) that logs in to Enea eBOK, downloads hourly meter CSVs and analyses them like the Python [eanalizer](https://github.com/theundefined/eanalizer): tariff costs, storage simulation, net-metering, tariff comparison, RCE market prices, optimal storage capacity, monthly summaries, CSV export. Architecture/flow/conventions are copied from omnis-mobile. License: GPL-3.0-or-later (port of eanalizer).
+eAnalizer Mobile is a native Android app (Kotlin, Jetpack Compose/Material 3) that logs in to Enea eBOK, downloads hourly meter CSVs and analyses them like the Python [eanalizer](https://github.com/theundefined/eanalizer): tariff costs, storage simulation, net-metering, tariff comparison, RCE market prices, net-billing (RCEm/RCE deposit), optimal storage capacity, monthly summaries, CSV export. Architecture/flow/conventions are copied from omnis-mobile. License: GPL-3.0-or-later (port of eanalizer).
 
 ## Commands
 
@@ -40,21 +40,25 @@ MVVM + Kotlin Flow, single `MainActivity`, no navigation library — `MainScreen
 app/src/main/kotlin/com/theundefined/eanalizer/
   domain/            pure Kotlin (java.time), NO android imports — CSV parsing, holidays, tariffs,
                      Analyzer (storage/net-metering simulation, tariff comparison, optimal capacity),
-                     Periods, Aggregation, RceAnalysis, CsvExport
-  data/local/        SettingsStore (EncryptedSharedPreferences), PersistentCookieJar, DataFiles
-  data/remote/       EneaClient (eBOK OIDC login + CSV download), RceClient (PSE RCE prices, per-day cache)
+                     Periods, Aggregation, RceAnalysis, NetBilling + RcemParser, CsvExport
+  data/local/        SettingsStore (prefs + EncryptedSharedPreferences), WebViewCookieJar, DataFiles
+  data/remote/       EneaHtml (pure eBOK page parsing/URL rules, JVM-tested), EneaClient (customer
+                     selection + CSV download on the WebView session), RceClient (PSE RCE per-day
+                     cache, RCEm page cache 12 h)
   data/repository/   EneaRepository — orchestrates login, sync, persistence; exposes typed exceptions
   ui/                EanalizerViewModel, UiState
   ui/theme/          EanalizerTheme (Material3 light/dark, dynamic color on API 31+)
-  ui/components/     Compose screens (MainScreen, Compare, RCE, Monthly, Data, Tariffs, Settings, LoginForm, Charts)
+  ui/components/     Compose screens (MainScreen, AnalysisCards, ReportScreens: Compare/RCE/Monthly/
+                     Data, TariffsScreen, SettingsScreen, EneaLoginScreen, Charts)
 ```
 
 Key rules:
 
-- **Layering**: `domain` must stay free of Android APIs so it can be unit-tested on the JVM. `data` depends on `domain`; `ui` depends on both. Repository returns `Result`/typed exceptions (`SessionExpiredException`, `LoginFailedException`); user-facing messages come from string resources in the UI.
+- **Layering**: `domain` must stay free of Android APIs so it can be unit-tested on the JVM. `data` depends on `domain`; `ui` depends on both. Repository throws typed exceptions (`SessionExpiredException`, `CustomerSelectionRequiredException`, `EneaProtocolException`, `IOException`); user-facing messages come from string resources in the UI.
 - **Tests required for domain logic**: any change to `domain/` needs JUnit4 tests in `app/src/test/kotlin/com/theundefined/eanalizer/...`. Results should match the Python eanalizer for the same input.
 - **Cache-then-refresh**: on start, show locally stored CSV data immediately, then sync in the background (pull-to-refresh = sync). Analysis is recomputed on `Dispatchers.Default` whenever records or prefs change — never re-download for a settings change. Preserve this pattern.
-- **Credentials are stored encrypted, not hashed** (needed to re-run the login when the session expires). Session cookies are persisted via `PersistentCookieJar`.
+- **Login happens in a WebView** (`EneaLoginScreen`): since 10.2026 Enea protects the form with reCAPTCHA Enterprise, so the app never posts credentials itself. Stored credentials (encrypted, not hashed) only prefill the React form; the user submits and enters the 2FA code. Navigation is limited to https `*.enea.pl`; landing on the logged-in `ebok.enea.pl` finishes the login. OkHttp shares the WebView `CookieManager` via `WebViewCookieJar` (also HttpOnly/SSO cookies), and uses the WebView User-Agent. `SessionExpiredException` → show the login WebView again.
+- **Port parity**: domain logic mirrors eanalizer (tariff zones G12 13-15/22-6, G12w peak 6-21; PSE `dtime` is the END of the quarter; net-billing rules in `NetBilling`). When eanalizer changes these, port the change with tests.
 - **Strings**: `res/values` = Polish (default), `res/values-en` = English. Keep both files in sync whenever UI copy is added or changed; no hard-coded UI text.
 - **Export** uses `FileProvider` (`${applicationId}.fileprovider`, `cacheDir/export/`) with `Intent.ACTION_SEND`.
 - Run `spotlessApply` before committing; CI fails on formatting.

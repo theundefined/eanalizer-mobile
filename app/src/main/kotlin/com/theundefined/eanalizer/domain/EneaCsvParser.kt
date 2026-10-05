@@ -26,10 +26,12 @@ object EneaCsvParser {
      */
     fun parse(text: String): List<HourlyRecord> {
         val lines =
-            text.replace("\u0000", "").removePrefix("﻿").lineSequence().filter { it.isNotBlank() }
+            text.replace("\u0000", "").removePrefix("\uFEFF").lineSequence().filter {
+                it.isNotBlank()
+            }
         val iter = lines.iterator()
         if (!iter.hasNext()) return emptyList()
-        val header = splitLine(iter.next()).map { it.trim().removePrefix("﻿") }
+        val header = splitLine(iter.next()).map { it.trim().removePrefix("\uFEFF") }
         val idx =
             listOf(COL_DATE, COL_POBOR_PRZED, COL_ODDANIE_PRZED, COL_POBOR, COL_ODDANIE).map { name
                 ->
