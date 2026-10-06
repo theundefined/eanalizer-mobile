@@ -20,6 +20,8 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** Several customers on the account and none selected yet - the user has to pick one. */
@@ -28,6 +30,8 @@ class CustomerSelectionRequiredException(val customers: List<EneaCustomer>) :
 
 /** No customer on the account has hourly meter data. */
 class NoMeterDataException : Exception("no customer with hourly data")
+
+private val syncLock = Mutex()
 
 /** Result of a sync: years downloaded now and years that Enea returned empty. */
 data class SyncResult(val downloaded: List<Int>, val empty: List<Int>)
@@ -61,27 +65,32 @@ class EneaRepository(context: Context) {
         onYear: (year: Int) -> Unit = {},
     ): SyncResult =
         withContext(Dispatchers.IO) {
-            if (!enea.isLoggedIn()) {
-                settings.loggedIn = false
-                throw SessionExpiredException()
-            }
-            settings.loggedIn = true
-            val info = selectCustomer() ?: throw NoMeterDataException()
-            val downloaded = ArrayList<Int>()
-            val empty = ArrayList<Int>()
-            for (year in info.minYear..info.maxYear) {
-                if (!force && !files.needsDownload(year)) continue
-                onYear(year)
-                val csv = enea.downloadYear(year, info.pointOfDeliveryId)
-                if (csv == null) empty += year
-                else {
-                    files.write(year, csv)
-                    downloaded += year
-                }
-            }
-            settings.lastSync = System.currentTimeMillis()
-            SyncResult(downloaded, empty)
+            // The app and the background job may sync at the same time.
+            syncLock.withLock { syncLocked(force, onYear) }
         }
+
+    private fun syncLocked(force: Boolean, onYear: (year: Int) -> Unit): SyncResult {
+        if (!enea.isLoggedIn()) {
+            settings.loggedIn = false
+            throw SessionExpiredException()
+        }
+        settings.loggedIn = true
+        val info = selectCustomer() ?: throw NoMeterDataException()
+        val downloaded = ArrayList<Int>()
+        val empty = ArrayList<Int>()
+        for (year in info.minYear..info.maxYear) {
+            if (!force && !files.needsDownload(year)) continue
+            onYear(year)
+            val csv = enea.downloadYear(year, info.pointOfDeliveryId)
+            if (csv == null) empty += year
+            else {
+                files.write(year, csv)
+                downloaded += year
+            }
+        }
+        settings.lastSync = System.currentTimeMillis()
+        return SyncResult(downloaded, empty)
+    }
 
     /**
      * Selects the configured customer and returns its meter info. Like eanalizer's setup, only
@@ -136,6 +145,7 @@ class EneaRepository(context: Context) {
     /** Called by the login WebView once it reached the logged-in eBOK. */
     fun onWebLoginFinished() {
         settings.loggedIn = true
+        settings.sessionExpiryNotified = false
     }
 
     /** Forgets the session cookies; downloaded data stays. */

@@ -184,4 +184,98 @@
     <!-- Login -->
     <string name="login_title">Logowanie Enea</string>
     <string name="login_info">Zaloguj się na stronie Enei (hasło i kod SMS/e-mail). Okno zamknie się samo po zalogowaniu.</string>
+    <!-- Navigation -->
+    <string name="nav_costs">Koszty</string>
+    <string name="nav_usage">Zużycie i produkcja</string>
+    <string name="nav_data">Dane</string>
+    <string name="nav_compare_desc">Koszt okresu w każdej taryfie i w taryfie dynamicznej</string>
+    <string name="nav_bills_desc">Miesięczne rozliczenie w układzie zbliżonym do faktury</string>
+    <string name="nav_storage_desc">Oszczędności i zwrot z magazynu energii</string>
+    <string name="nav_monthly_desc">Pobór i oddanie w kolejnych miesiącach</string>
+    <string name="nav_yoy_desc">Porównanie miesięcy dwóch lat</string>
+    <string name="nav_profile_desc">Średnia doba i mapa godzin</string>
+    <string name="nav_selfuse_desc">Ile produkcji PV zużywasz na miejscu</string>
+    <string name="nav_data_desc">Dni, braki w danych</string>
+    <string name="nav_rce_desc">Wycena energii po godzinowych cenach PSE</string>
+    <string name="nav_tariffs_desc">Ceny stref i opłaty stałe</string>
+    <string name="screen_bills">Rachunki miesięczne</string>
+    <string name="screen_storage">Magazyn energii</string>
+    <string name="screen_yoy">Rok do roku</string>
+    <string name="screen_profile">Profil dobowy</string>
+    <string name="screen_selfuse">Autokonsumpcja</string>
+    <string name="settings_analysis">Analiza</string>
+    <string name="recalculate">Przelicz</string>
+    <!-- Bills -->
+    <string name="bills_info">Rozliczenie każdego miesiąca w wybranej taryfie, przy bieżących ustawieniach magazynu i rozliczenia. Układ zbliżony do faktury — nie jest jej kopią.</string>
+    <string name="bills_net_metering">W net-meteringu energia oddana jest rozliczana w całym okresie, nie co miesiąc — rachunki nie uwzględniają tej ulgi.</string>
+    <string name="bills_energy">Energia</string>
+    <string name="bills_distribution">Dystrybucja</string>
+    <string name="bills_energy_total">Energia czynna</string>
+    <string name="bills_distribution_total">Dystrybucja zmienna</string>
+    <string name="bills_fixed">Opłaty stałe</string>
+    <string name="bills_total">Do zapłaty</string>
+    <!-- Storage -->
+    <string name="storage_info">Koszt okresu z magazynem różnej pojemności (ta sama taryfa, sprawność i rozliczenie). Oszczędności przeliczone na rok.</string>
+    <string name="storage_price">Cena magazynu [zł/kWh pojemności]</string>
+    <string name="storage_price_hint">Koszt instalacji podzielony przez pojemność, np. 2500 zł/kWh.</string>
+    <string name="storage_capacity_col">Pojemność</string>
+    <string name="storage_cost_col">Koszt okresu</string>
+    <string name="storage_savings_col">Oszczędność/rok</string>
+    <string name="storage_payback_col">Zwrot</string>
+    <string name="years">%1$s lat</string>
+    <string name="storage_legend">• obecne ustawienie, ★ najkrótszy zwrot. Prosty okres zwrotu, bez degradacji ogniw i zmian cen.</string>
+    <!-- Year over year -->
+    <string name="yoy_info">Wszystkie pobrane dane (niezależnie od wybranego okresu), wartości przed bilansowaniem.</string>
+    <string name="yoy_year_a">Rok:</string>
+    <string name="yoy_year_b">Porównaj z:</string>
+    <string name="yoy_change">Zmiana</string>
+    <string name="yoy_partial">Miesiące bez pełnych danych zaniżają sumy; „—” oznacza brak danych.</string>
+    <!-- Profile -->
+    <string name="profile_info">Średnie wartości godzinowe przed bilansowaniem. Weekendy obejmują też święta.</string>
+    <string name="profile_day">Średnia doba</string>
+    <string name="profile_workdays">Dni robocze</string>
+    <string name="profile_weekends">Weekendy i święta</string>
+    <string name="profile_unit">Średnio kWh w danej godzinie.</string>
+    <string name="profile_heatmap">Mapa godzin</string>
+    <string name="heatmap_import">Przewaga poboru</string>
+    <string name="heatmap_export">Przewaga oddania</string>
+    <string name="heatmap_hint">Dotknij komórki, aby zobaczyć średni bilans (pobór − oddanie)</string>
+    <string name="heatmap_value">%1$s, godz. %2$d:00: %3$s</string>
+    <!-- Self-consumption -->
+    <string name="selfuse_info">Licznik nie widzi produkcji PV — autokonsumpcja to szacunek na podstawie rocznej produkcji z falownika. Bilansowanie międzyfazowe to rzeczywiste dane z licznika.</string>
+    <string name="pv_installation">Instalacja PV</string>
+    <string name="pv_annual">Roczna produkcja PV [kWh]</string>
+    <string name="pv_annual_hint">Odczyt z aplikacji falownika za ostatnie 12 miesięcy (ok. 1000 kWh na każdy kWp). 0 = nie podano.</string>
+    <string name="selfuse_balancing">Bilansowanie godzinowe</string>
+    <string name="selfuse_balanced">Pobór zbilansowany oddaniem</string>
+    <string name="selfuse_balanced_hint">Energia pobrana z jednej fazy i jednocześnie oddana inną w tej samej godzinie — nie trafia na rachunek.</string>
+    <string name="selfuse_estimate">Szacunek autokonsumpcji</string>
+    <string name="selfuse_production">Produkcja PV (szacunek)</string>
+    <string name="selfuse_self">Zużyte na miejscu</string>
+    <string name="selfuse_export">Oddane do sieci</string>
+    <string name="selfuse_share">Autokonsumpcja</string>
+    <string name="selfuse_coverage">Pokrycie zużycia z PV</string>
+    <string name="selfuse_production_short">Produkcja</string>
+    <string name="selfuse_self_short">Na miejscu</string>
+    <string name="selfuse_share_short">Autok.</string>
+    <string name="selfuse_coverage_short">Pokrycie</string>
+    <string name="selfuse_estimate_hint">Produkcja rozłożona na miesiące typowym profilem dla Polski — pojedyncze miesiące mogą odbiegać od rzeczywistości, suma roczna jest wiarygodniejsza.</string>
+    <!-- Dynamic tariff -->
+    <string name="dynamic_title">Taryfa dynamiczna (szacunek)</string>
+    <string name="dynamic_info">Energia po godzinowej cenie RCE + marża sprzedawcy + VAT; dystrybucja i opłaty stałe z taryfy %1$s. Ujemne ceny liczone jako 0.</string>
+    <string name="dynamic_margin">Marża sprzedawcy [zł/kWh netto]</string>
+    <string name="dynamic_vs">Względem najtańszej taryfy (%1$s): %2$s</string>
+    <string name="dynamic_missing">Brak cen RCE dla %1$d godzin z poborem — przyjęto cenę z taryfy.</string>
+    <string name="dynamic_estimate">Rzeczywiste oferty opierają się na cenach giełdowych TGE i własnej marży, więc wynik jest przybliżony.</string>
+    <string name="dynamic_load">Policz (pobiera ceny RCE)</string>
+    <!-- Background sync -->
+    <string name="background_sync">Synchronizacja w tle</string>
+    <string name="background_sync_switch">Pobieraj dane codziennie</string>
+    <string name="background_sync_info">Powiadomienie o nowych danych lub o konieczności ponownego logowania.</string>
+    <string name="background_sync_no_notifications">Powiadomienia są wyłączone — włącz je w ustawieniach systemu, aby dostawać informacje.</string>
+    <string name="notif_channel">Synchronizacja danych</string>
+    <string name="notif_new_data_title">Nowe dane z Enea</string>
+    <string name="notif_new_data_text">Pobrano nowe dane licznika — otwórz, aby zobaczyć analizę.</string>
+    <string name="notif_session_title">Zaloguj się ponownie do Enea</string>
+    <string name="notif_session_text">Sesja wygasła, nowe dane nie mogą być pobrane.</string>
 </resources>

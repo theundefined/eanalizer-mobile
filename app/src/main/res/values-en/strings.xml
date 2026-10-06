@@ -182,4 +182,98 @@
     <!-- Login -->
     <string name="login_title">Enea login</string>
     <string name="login_info">Log in on Enea\'s page (password and SMS/e-mail code). This window closes itself once you are logged in.</string>
+    <!-- Navigation -->
+    <string name="nav_costs">Costs</string>
+    <string name="nav_usage">Consumption &amp; production</string>
+    <string name="nav_data">Data</string>
+    <string name="nav_compare_desc">Cost of the period in each tariff and in a dynamic tariff</string>
+    <string name="nav_bills_desc">Monthly settlement laid out like an invoice</string>
+    <string name="nav_storage_desc">Savings and payback of an energy storage</string>
+    <string name="nav_monthly_desc">Import and export month by month</string>
+    <string name="nav_yoy_desc">Months of two years side by side</string>
+    <string name="nav_profile_desc">Average day and hour map</string>
+    <string name="nav_selfuse_desc">How much PV production you use on site</string>
+    <string name="nav_data_desc">Days, gaps in the data</string>
+    <string name="nav_rce_desc">Energy valued at hourly PSE prices</string>
+    <string name="nav_tariffs_desc">Zone prices and fixed fees</string>
+    <string name="screen_bills">Monthly bills</string>
+    <string name="screen_storage">Energy storage</string>
+    <string name="screen_yoy">Year over year</string>
+    <string name="screen_profile">Daily profile</string>
+    <string name="screen_selfuse">Self-consumption</string>
+    <string name="settings_analysis">Analysis</string>
+    <string name="recalculate">Recalculate</string>
+    <!-- Bills -->
+    <string name="bills_info">Settlement of each month in the selected tariff with the current storage and settlement settings. Laid out like an invoice — not a copy of it.</string>
+    <string name="bills_net_metering">In net-metering exported energy is settled over the whole period, not monthly — the bills don\'t include that credit.</string>
+    <string name="bills_energy">Energy</string>
+    <string name="bills_distribution">Distribution</string>
+    <string name="bills_energy_total">Active energy</string>
+    <string name="bills_distribution_total">Variable distribution</string>
+    <string name="bills_fixed">Fixed fees</string>
+    <string name="bills_total">To pay</string>
+    <!-- Storage -->
+    <string name="storage_info">Cost of the period with storages of different capacity (same tariff, efficiency and settlement). Savings scaled to a year.</string>
+    <string name="storage_price">Storage price [zł/kWh of capacity]</string>
+    <string name="storage_price_hint">Installation cost divided by capacity, e.g. 2500 zł/kWh.</string>
+    <string name="storage_capacity_col">Capacity</string>
+    <string name="storage_cost_col">Period cost</string>
+    <string name="storage_savings_col">Savings/year</string>
+    <string name="storage_payback_col">Payback</string>
+    <string name="years">%1$s years</string>
+    <string name="storage_legend">• current setting, ★ shortest payback. Simple payback, without cell degradation or price changes.</string>
+    <!-- Year over year -->
+    <string name="yoy_info">All downloaded data (regardless of the selected period), values before balancing.</string>
+    <string name="yoy_year_a">Year:</string>
+    <string name="yoy_year_b">Compare with:</string>
+    <string name="yoy_change">Change</string>
+    <string name="yoy_partial">Months without complete data lower the sums; “—” means no data.</string>
+    <!-- Profile -->
+    <string name="profile_info">Average hourly values before balancing. Weekends include public holidays.</string>
+    <string name="profile_day">Average day</string>
+    <string name="profile_workdays">Workdays</string>
+    <string name="profile_weekends">Weekends &amp; holidays</string>
+    <string name="profile_unit">Average kWh in a given hour.</string>
+    <string name="profile_heatmap">Hour map</string>
+    <string name="heatmap_import">Mostly import</string>
+    <string name="heatmap_export">Mostly export</string>
+    <string name="heatmap_hint">Tap a cell to see the average balance (import − export)</string>
+    <string name="heatmap_value">%1$s, %2$d:00: %3$s</string>
+    <!-- Self-consumption -->
+    <string name="selfuse_info">The meter can\'t see PV production — self-consumption is an estimate based on the annual production from the inverter. Interphase balancing is real meter data.</string>
+    <string name="pv_installation">PV installation</string>
+    <string name="pv_annual">Annual PV production [kWh]</string>
+    <string name="pv_annual_hint">From the inverter app for the last 12 months (about 1000 kWh per kWp). 0 = not set.</string>
+    <string name="selfuse_balancing">Hourly balancing</string>
+    <string name="selfuse_balanced">Import offset by export</string>
+    <string name="selfuse_balanced_hint">Energy imported on one phase while exported on another in the same hour — not billed.</string>
+    <string name="selfuse_estimate">Self-consumption estimate</string>
+    <string name="selfuse_production">PV production (estimate)</string>
+    <string name="selfuse_self">Used on site</string>
+    <string name="selfuse_export">Exported to the grid</string>
+    <string name="selfuse_share">Self-consumption</string>
+    <string name="selfuse_coverage">Consumption covered by PV</string>
+    <string name="selfuse_production_short">Production</string>
+    <string name="selfuse_self_short">On site</string>
+    <string name="selfuse_share_short">Self</string>
+    <string name="selfuse_coverage_short">Coverage</string>
+    <string name="selfuse_estimate_hint">Production is spread over months with a typical profile for Poland — single months may differ from reality, the annual sum is more reliable.</string>
+    <!-- Dynamic tariff -->
+    <string name="dynamic_title">Dynamic tariff (estimate)</string>
+    <string name="dynamic_info">Energy at hourly RCE + seller margin + VAT; distribution and fixed fees from tariff %1$s. Negative prices count as 0.</string>
+    <string name="dynamic_margin">Seller margin [zł/kWh net]</string>
+    <string name="dynamic_vs">Compared to the cheapest tariff (%1$s): %2$s</string>
+    <string name="dynamic_missing">No RCE prices for %1$d hours with import — the tariff price was used.</string>
+    <string name="dynamic_estimate">Real offers use TGE exchange prices and their own margin, so this is an approximation.</string>
+    <string name="dynamic_load">Calculate (downloads RCE prices)</string>
+    <!-- Background sync -->
+    <string name="background_sync">Background sync</string>
+    <string name="background_sync_switch">Download data daily</string>
+    <string name="background_sync_info">Notifies about new data or when you need to log in again.</string>
+    <string name="background_sync_no_notifications">Notifications are disabled — enable them in system settings to get updates.</string>
+    <string name="notif_channel">Data sync</string>
+    <string name="notif_new_data_title">New data from Enea</string>
+    <string name="notif_new_data_text">New meter data downloaded — open to see the analysis.</string>
+    <string name="notif_session_title">Log in to Enea again</string>
+    <string name="notif_session_text">The session expired, new data can\'t be downloaded.</string>
 </resources>

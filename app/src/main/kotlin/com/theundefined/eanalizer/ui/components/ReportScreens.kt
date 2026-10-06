@@ -14,13 +14,14 @@ import androidx.compose.ui.text.font.FontWeight
 import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.domain.AggregateRow
 import com.theundefined.eanalizer.domain.Aggregation
+import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.UiState
 import com.theundefined.eanalizer.ui.kwh
 import com.theundefined.eanalizer.ui.num
 import com.theundefined.eanalizer.ui.zl
 
 @Composable
-fun CompareScreen(state: UiState, onBack: () -> Unit) {
+fun CompareScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> Unit) {
     val a = state.analysis
     SubScreen(stringResource(R.string.screen_compare), onBack) {
         item { MutedText(stringResource(R.string.compare_info)) }
@@ -75,6 +76,7 @@ fun CompareScreen(state: UiState, onBack: () -> Unit) {
                 }
             }
         }
+        item(key = "dynamic") { DynamicTariffCard(state, viewModel) }
     }
 }
 
@@ -131,6 +133,7 @@ fun MonthlyScreen(state: UiState, onBack: () -> Unit) {
     val a = state.analysis
     SubScreen(stringResource(R.string.screen_monthly), onBack) {
         if (a == null) return@SubScreen
+        item { PeriodInfo(a) }
         item { SectionCard { ImportExportChart(a.monthly) } }
         item { AggregateTable(a.monthly, stringResource(R.string.month)) }
         val nb = a.netBilling
@@ -173,6 +176,7 @@ fun DataScreen(state: UiState, onBack: () -> Unit) {
     SubScreen(stringResource(R.string.screen_data), onBack) {
         item { MutedText(stringResource(R.string.data_files, state.dataYears.joinToString(", "))) }
         if (a == null) return@SubScreen
+        item { PeriodInfo(a) }
         item { SectionCard { ImportExportChart(a.daily) } }
         item {
             SectionCard(title = stringResource(R.string.missing_hours_list, a.missingHours.size)) {

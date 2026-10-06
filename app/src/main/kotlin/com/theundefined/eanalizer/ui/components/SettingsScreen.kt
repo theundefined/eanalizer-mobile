@@ -1,15 +1,28 @@
 package com.theundefined.eanalizer.ui.components
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -17,13 +30,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.theundefined.eanalizer.BuildConfig
 import com.theundefined.eanalizer.R
+import com.theundefined.eanalizer.data.sync.BackgroundSync
 import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.UiState
 
@@ -32,8 +49,14 @@ fun SettingsScreen(
     state: UiState,
     viewModel: EanalizerViewModel,
     onLogin: () -> Unit,
+    onTariffs: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val notificationPermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+            viewModel.setBackgroundSync(true)
+        }
     var email by remember(state.email) { mutableStateOf(state.email) }
     var password by remember { mutableStateOf("") }
     var confirmClear by remember { mutableStateOf(false) }
@@ -109,6 +132,59 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+        }
+        item {
+            SectionCard(title = stringResource(R.string.settings_analysis)) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.screen_tariffs)) },
+                    supportingContent = { Text(stringResource(R.string.nav_tariffs_desc)) },
+                    leadingContent = { Icon(Icons.Filled.Tune, contentDescription = null) },
+                    trailingContent = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null
+                        )
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onTariffs),
+                )
+                Text(
+                    stringResource(R.string.pv_installation),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                PvProductionField(state, viewModel)
+            }
+        }
+        item {
+            SectionCard(title = stringResource(R.string.background_sync)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.background_sync_switch))
+                        MutedText(stringResource(R.string.background_sync_info))
+                    }
+                    Switch(
+                        checked = state.backgroundSync,
+                        onCheckedChange = { on ->
+                            if (
+                                on &&
+                                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    !BackgroundSync.canNotify(context)
+                            )
+                                notificationPermission.launch(
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                )
+                            else viewModel.setBackgroundSync(on)
+                        },
+                    )
+                }
+                // Re-checked on every composition (the user may change it in system settings).
+                if (state.backgroundSync && !BackgroundSync.canNotify(context))
+                    Text(
+                        stringResource(R.string.background_sync_no_notifications),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
             }
         }
         item {

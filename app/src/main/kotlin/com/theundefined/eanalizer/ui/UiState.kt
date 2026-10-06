@@ -1,13 +1,21 @@
 package com.theundefined.eanalizer.ui
 
 import com.theundefined.eanalizer.data.local.AnalysisPrefs
+import com.theundefined.eanalizer.data.local.ReportPrefs
 import com.theundefined.eanalizer.data.remote.EneaCustomer
 import com.theundefined.eanalizer.domain.AggregateRow
 import com.theundefined.eanalizer.domain.AnalysisResult
 import com.theundefined.eanalizer.domain.DailyTrends
+import com.theundefined.eanalizer.domain.DayProfile
+import com.theundefined.eanalizer.domain.DynamicTariffResult
+import com.theundefined.eanalizer.domain.Heatmap
+import com.theundefined.eanalizer.domain.HourlyRecord
+import com.theundefined.eanalizer.domain.MonthlyBill
 import com.theundefined.eanalizer.domain.NetBillingResult
 import com.theundefined.eanalizer.domain.RceResult
+import com.theundefined.eanalizer.domain.SelfUseMonth
 import com.theundefined.eanalizer.domain.TariffTable
+import com.theundefined.eanalizer.domain.YearMonths
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -38,6 +46,44 @@ data class Analysis(
     val missingRcem: List<YearMonth>,
     /** Net-billing selected but prices could not be fetched at all. */
     val pricesUnavailable: Boolean,
+    val dayProfile: DayProfile,
+    val heatmap: Heatmap,
+    val bills: List<MonthlyBill>,
+    /** Self-consumption with production for 1 kWh/year (scale by the annual production). */
+    val selfUseUnit: List<SelfUseMonth>,
+    /** Inputs kept for on-demand reports (storage scenarios, dynamic tariff). */
+    val inputs: AnalysisInputs,
+)
+
+/** What [Analysis] was computed from. */
+class AnalysisInputs(
+    val records: List<HourlyRecord>,
+    /** Net-billing: records of up to 12 months before the period. */
+    val history: List<HourlyRecord>,
+    val prefs: AnalysisPrefs,
+    val tariffs: TariffTable,
+    val tariff: String,
+    val netMeteringRatio: Double?,
+    val rce: Map<LocalDateTime, Double>,
+    val rcem: Map<YearMonth, Double>,
+)
+
+/** Total cost of the period per storage capacity (computed on demand for one [Analysis]). */
+data class StorageState(
+    val loading: Boolean = false,
+    val forAnalysis: Analysis? = null,
+    val costs: Map<Double, Double> = emptyMap(),
+)
+
+/** Dynamic tariff estimate (computed on demand for one [Analysis] and margin). */
+data class DynamicState(
+    val loading: Boolean = false,
+    val done: Int = 0,
+    val total: Int = 0,
+    val forAnalysis: Analysis? = null,
+    val margin: Double = 0.0,
+    val result: DynamicTariffResult? = null,
+    val failedDays: Int = 0,
 )
 
 data class RceState(
@@ -83,4 +129,10 @@ data class UiState(
     /** Last successful PSE price download (epoch ms), 0 = never. */
     val pricesFetchedAt: Long = 0L,
     val pricesRefreshing: Boolean = false,
+    val reportPrefs: ReportPrefs = ReportPrefs(),
+    val backgroundSync: Boolean = false,
+    /** Monthly sums of all data per year, newest first. */
+    val years: List<YearMonths> = emptyList(),
+    val storage: StorageState = StorageState(),
+    val dynamic: DynamicState = DynamicState(),
 )

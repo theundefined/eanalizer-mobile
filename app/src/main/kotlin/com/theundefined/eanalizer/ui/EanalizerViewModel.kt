@@ -5,21 +5,27 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theundefined.eanalizer.data.local.AnalysisPrefs
+import com.theundefined.eanalizer.data.local.ReportPrefs
 import com.theundefined.eanalizer.data.local.SettlementMode
 import com.theundefined.eanalizer.data.remote.EneaProtocolException
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
 import com.theundefined.eanalizer.data.repository.CustomerSelectionRequiredException
 import com.theundefined.eanalizer.data.repository.EneaRepository
 import com.theundefined.eanalizer.data.repository.NoMeterDataException
+import com.theundefined.eanalizer.data.sync.BackgroundSync
 import com.theundefined.eanalizer.domain.Aggregation
 import com.theundefined.eanalizer.domain.AnalysisResult
 import com.theundefined.eanalizer.domain.Analyzer
+import com.theundefined.eanalizer.domain.Bills
 import com.theundefined.eanalizer.domain.CsvExport
+import com.theundefined.eanalizer.domain.DynamicTariff
 import com.theundefined.eanalizer.domain.HourlyRecord
+import com.theundefined.eanalizer.domain.Insights
 import com.theundefined.eanalizer.domain.NetBilling
 import com.theundefined.eanalizer.domain.NetBillingValuation
 import com.theundefined.eanalizer.domain.Periods
 import com.theundefined.eanalizer.domain.RceAnalysis
+import com.theundefined.eanalizer.domain.StorageEconomics
 import com.theundefined.eanalizer.domain.TariffTable
 import com.theundefined.eanalizer.domain.XlsxWriter
 import java.io.File
@@ -79,6 +85,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 tariffs = settings.tariffs,
                 customers = settings.customers,
                 customerNumber = settings.customerNumber,
+                reportPrefs = settings.reportPrefs,
+                backgroundSync = settings.backgroundSync,
             )
         )
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -90,6 +98,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     private var syncJob: Job? = null
     private var rceJob: Job? = null
     private var pricesJob: Job? = null
+    private var storageJob: Job? = null
+    private var dynamicJob: Job? = null
 
     /** Bumped by [refreshPrices] to recompute the analysis with freshly downloaded PSE prices. */
     private val pricesRetry = MutableStateFlow(0)
@@ -100,6 +110,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             val hasPassword = settings.password.isNotEmpty()
             _uiState.update { it.copy(email = email, hasPassword = hasPassword) }
         }
+        if (settings.backgroundSync) BackgroundSync.schedule(application, true)
         // Cache-then-refresh: local data first, then a background sync when logged in and the
         // data was not downloaded today yet.
         viewModelScope.launch {
@@ -137,6 +148,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 dataStart = recs.firstOrNull()?.timestamp?.toLocalDate(),
                 dataEnd = recs.lastOrNull()?.timestamp?.toLocalDate(),
                 dataYears = repo.dataFiles().map { f -> f.year },
+                years = Insights.byYear(recs),
                 rce = RceState(),
             )
         }
@@ -248,8 +260,152 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 monthly = Aggregation.monthly(recs),
                 missingRcem = nb?.missingRcemMonths ?: emptyList(),
                 pricesUnavailable = pricesUnavailable,
+                dayProfile = Insights.dayProfile(recs),
+                heatmap = Insights.heatmap(recs),
+                bills = Bills.monthly(result.simulation, tariffs, tariff, nb),
+                selfUseUnit = Insights.selfUse(recs, 1.0),
+                inputs = AnalysisInputs(recs, history, prefs, tariffs, tariff, ratio, rce, rcem),
             )
         }
+    }
+
+    /**
+     * Total cost of [inputs] with a storage of [capacity] kWh (same settlement as the analysis).
+     */
+    private fun costWithStorage(inputs: AnalysisInputs, capacity: Double): Double {
+        val p = inputs.prefs
+        val r =
+            Analyzer.runFullAnalysis(
+                inputs.records,
+                capacity,
+                inputs.tariffs,
+                inputs.tariff,
+                inputs.netMeteringRatio,
+                p.efficiency,
+            )
+        if (p.mode != SettlementMode.NET_BILLING) return r.totalCost
+        val history =
+            if (inputs.history.isEmpty()) emptyList()
+            else
+                Analyzer.runFullAnalysis(
+                        inputs.history,
+                        capacity,
+                        inputs.tariffs,
+                        inputs.tariff,
+                        null,
+                        p.efficiency,
+                    )
+                    .simulation
+        return NetBilling.settle(
+                r.simulation,
+                inputs.tariffs,
+                inputs.tariff,
+                inputs.rce,
+                inputs.rcem,
+                p.valuation,
+                r.fixedFees,
+                history,
+            )
+            ?.calkowityKoszt ?: r.totalCost
+    }
+
+    /** Computes the period cost for typical storage sizes (plus the current and suggested one). */
+    fun loadStorage() {
+        val a = _uiState.value.analysis ?: return
+        if (
+            _uiState.value.storage.let {
+                it.forAnalysis === a && (it.loading || it.costs.isNotEmpty())
+            }
+        )
+            return
+        storageJob?.cancel()
+        storageJob =
+            viewModelScope.launch {
+                _uiState.update { it.copy(storage = StorageState(loading = true, forAnalysis = a)) }
+                val caps =
+                    (StorageEconomics.CAPACITIES +
+                            a.inputs.prefs.capacity +
+                            Math.round(a.optimalCapacity * 2) / 2.0)
+                        .filter { it in 0.0..100.0 }
+                        .distinct()
+                        .sorted()
+                val costs =
+                    withContext(Dispatchers.Default) {
+                        caps.associateWith { costWithStorage(a.inputs, it) }
+                    }
+                _uiState.update { it.copy(storage = StorageState(forAnalysis = a, costs = costs)) }
+            }
+    }
+
+    /** Dynamic tariff estimate for the analysed period; downloads hourly RCE when needed. */
+    fun loadDynamic() {
+        val a = _uiState.value.analysis ?: return
+        val margin = _uiState.value.reportPrefs.dynamicMargin
+        val d = _uiState.value.dynamic
+        if (d.forAnalysis === a && d.margin == margin && (d.loading || d.result != null)) return
+        dynamicJob?.cancel()
+        dynamicJob =
+            viewModelScope.launch {
+                _uiState.update {
+                    it.copy(
+                        dynamic = DynamicState(loading = true, forAnalysis = a, margin = margin)
+                    )
+                }
+                val inputs = a.inputs
+                val netBilling = inputs.prefs.mode == SettlementMode.NET_BILLING
+                val history = if (netBilling) inputs.history else emptyList()
+                val from = history.firstOrNull()?.timestamp?.toLocalDate() ?: a.from
+                val (prices, failed) =
+                    repo.rcePrices(from, a.to) { done, total ->
+                        _uiState.update {
+                            it.copy(dynamic = it.dynamic.copy(done = done, total = total))
+                        }
+                    }
+                val result =
+                    withContext(Dispatchers.Default) {
+                        val historySim =
+                            if (history.isEmpty()) emptyList()
+                            else
+                                Analyzer.runFullAnalysis(
+                                        history,
+                                        inputs.prefs.capacity,
+                                        inputs.tariffs,
+                                        inputs.tariff,
+                                        null,
+                                        inputs.prefs.efficiency,
+                                    )
+                                    .simulation
+                        DynamicTariff.cost(
+                            a.result.simulation,
+                            inputs.tariffs,
+                            inputs.tariff,
+                            prices,
+                            margin,
+                            a.result.fixedFees,
+                            netBilling,
+                            historySim,
+                            inputs.rcem,
+                        )
+                    }
+                _uiState.update {
+                    it.copy(
+                        dynamic =
+                            it.dynamic.copy(loading = false, result = result, failedDays = failed)
+                    )
+                }
+            }
+    }
+
+    fun setBackgroundSync(enabled: Boolean) {
+        settings.backgroundSync = enabled
+        BackgroundSync.schedule(getApplication(), enabled)
+        _uiState.update { it.copy(backgroundSync = enabled) }
+    }
+
+    fun updateReportPrefs(transform: (ReportPrefs) -> ReportPrefs) {
+        val p = transform(_uiState.value.reportPrefs)
+        settings.reportPrefs = p
+        _uiState.update { it.copy(reportPrefs = p) }
     }
 
     /** Downloads new data. [quiet] = background sync on start (no login prompt). */

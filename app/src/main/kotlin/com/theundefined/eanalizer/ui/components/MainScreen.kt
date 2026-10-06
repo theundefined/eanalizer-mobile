@@ -17,10 +17,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SolarPower
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -31,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -48,6 +58,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -125,8 +137,9 @@ fun MainScreen(viewModel: EanalizerViewModel) {
         }
     }
 
-    BackHandler(enabled = currentScreen != "main") { currentScreen = "main" }
-    val back = { currentScreen = "main" }
+    // Tariffs are opened from Settings, so back returns there.
+    val back = { currentScreen = if (currentScreen == "tariffs") "settings" else "main" }
+    BackHandler(enabled = currentScreen != "main") { back() }
 
     state.customerChoice?.let { customers ->
         AlertDialog(
@@ -168,6 +181,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                 state = state,
                 viewModel = viewModel,
                 onLogin = { currentScreen = "login" },
+                onTariffs = { currentScreen = "tariffs" },
                 onBack = back,
             )
             return
@@ -177,7 +191,27 @@ fun MainScreen(viewModel: EanalizerViewModel) {
             return
         }
         "compare" -> {
-            CompareScreen(state = state, onBack = back)
+            CompareScreen(state = state, viewModel = viewModel, onBack = back)
+            return
+        }
+        "bills" -> {
+            BillsScreen(state = state, onBack = back)
+            return
+        }
+        "storage" -> {
+            StorageScreen(state = state, viewModel = viewModel, onBack = back)
+            return
+        }
+        "yoy" -> {
+            YearOverYearScreen(state = state, onBack = back)
+            return
+        }
+        "profile" -> {
+            ProfileScreen(state = state, onBack = back)
+            return
+        }
+        "selfuse" -> {
+            SelfUseScreen(state = state, viewModel = viewModel, onBack = back)
             return
         }
         "rce" -> {
@@ -232,31 +266,8 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                 if (state.hasData) {
                     item { ParamsCard(state = state, onChange = { viewModel.updatePrefs(it) }) }
                     item { SummaryCard(state, onRetryPrices = { viewModel.refreshPrices() }) }
-                    item {
-                        SectionCard {
-                            listOf(
-                                    "compare" to R.string.screen_compare,
-                                    "monthly" to R.string.screen_monthly,
-                                    "data" to R.string.screen_data,
-                                    "rce" to R.string.screen_rce,
-                                    "tariffs" to R.string.screen_tariffs,
-                                )
-                                .forEach { (screen, label) ->
-                                    ListItem(
-                                        headlineContent = { Text(stringResource(label)) },
-                                        trailingContent = {
-                                            Icon(
-                                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                                null,
-                                            )
-                                        },
-                                        modifier =
-                                            Modifier.fillMaxWidth().clickable {
-                                                currentScreen = screen
-                                            },
-                                    )
-                                }
-                        }
+                    NAV_GROUPS.forEach { group ->
+                        item(key = group.title) { NavGroup(group) { currentScreen = it } }
                     }
                 }
             }
@@ -423,5 +434,101 @@ private fun ExportMenu(state: UiState, viewModel: EanalizerViewModel) {
                 }
             },
         )
+    }
+}
+
+private class NavEntry(
+    val screen: String,
+    val title: Int,
+    val description: Int,
+    val icon: ImageVector,
+)
+
+private class NavGroupDef(val title: Int, val entries: List<NavEntry>)
+
+/** Reports grouped by topic (Material 3 list with section headers). */
+private val NAV_GROUPS =
+    listOf(
+        NavGroupDef(
+            R.string.nav_costs,
+            listOf(
+                NavEntry(
+                    "compare",
+                    R.string.screen_compare,
+                    R.string.nav_compare_desc,
+                    Icons.AutoMirrored.Filled.CompareArrows,
+                ),
+                NavEntry(
+                    "bills",
+                    R.string.screen_bills,
+                    R.string.nav_bills_desc,
+                    Icons.AutoMirrored.Filled.ReceiptLong,
+                ),
+                NavEntry(
+                    "storage",
+                    R.string.screen_storage,
+                    R.string.nav_storage_desc,
+                    Icons.Filled.BatteryChargingFull,
+                ),
+            ),
+        ),
+        NavGroupDef(
+            R.string.nav_usage,
+            listOf(
+                NavEntry(
+                    "monthly",
+                    R.string.screen_monthly,
+                    R.string.nav_monthly_desc,
+                    Icons.Filled.CalendarMonth,
+                ),
+                NavEntry("yoy", R.string.screen_yoy, R.string.nav_yoy_desc, Icons.Filled.DateRange),
+                NavEntry(
+                    "profile",
+                    R.string.screen_profile,
+                    R.string.nav_profile_desc,
+                    Icons.Filled.Schedule,
+                ),
+                NavEntry(
+                    "selfuse",
+                    R.string.screen_selfuse,
+                    R.string.nav_selfuse_desc,
+                    Icons.Filled.SolarPower,
+                ),
+            ),
+        ),
+        NavGroupDef(
+            R.string.nav_data,
+            listOf(
+                NavEntry(
+                    "data",
+                    R.string.screen_data,
+                    R.string.nav_data_desc,
+                    Icons.Filled.TableChart,
+                ),
+                NavEntry(
+                    "rce",
+                    R.string.screen_rce,
+                    R.string.nav_rce_desc,
+                    Icons.AutoMirrored.Filled.ShowChart,
+                ),
+            ),
+        ),
+    )
+
+@Composable
+private fun NavGroup(group: NavGroupDef, onOpen: (String) -> Unit) {
+    SectionCard(title = stringResource(group.title)) {
+        group.entries.forEach { e ->
+            ListItem(
+                headlineContent = { Text(stringResource(e.title)) },
+                supportingContent = { Text(stringResource(e.description)) },
+                leadingContent = { Icon(e.icon, contentDescription = null) },
+                trailingContent = {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.fillMaxWidth().clickable { onOpen(e.screen) },
+            )
+        }
     }
 }

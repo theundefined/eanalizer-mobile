@@ -39,6 +39,17 @@ data class AnalysisPrefs(
     val customTo: String? = null,
 )
 
+/** Inputs of the reports that don't change the main analysis (no recomputation). */
+@Serializable
+data class ReportPrefs(
+    /** Annual PV production from the inverter, kWh (0 = unknown). */
+    val pvAnnualKwh: Double = 0.0,
+    /** Storage price for the payback estimate, zł per kWh of capacity. */
+    val storagePricePerKwh: Double = 2500.0,
+    /** Dynamic tariff: seller margin added to RCE, net zł/kWh. */
+    val dynamicMargin: Double = 0.10,
+)
+
 /**
  * App settings. Credentials (used only to prefill the eBOK login form) are stored encrypted, not
  * hashed. Everything else lives in plain preferences.
@@ -72,6 +83,23 @@ class SettingsStore(context: Context) {
                 runCatching { json.decodeFromString<AnalysisPrefs>(it) }.getOrNull()
             } ?: AnalysisPrefs()
         set(v) = plain.edit().putString(KEY_PREFS, json.encodeToString(v)).apply()
+
+    var reportPrefs: ReportPrefs
+        get() =
+            plain.getString(KEY_REPORT_PREFS, null)?.let {
+                runCatching { json.decodeFromString<ReportPrefs>(it) }.getOrNull()
+            } ?: ReportPrefs()
+        set(v) = plain.edit().putString(KEY_REPORT_PREFS, json.encodeToString(v)).apply()
+
+    /** Daily background sync with notifications. */
+    var backgroundSync: Boolean
+        get() = plain.getBoolean(KEY_BACKGROUND_SYNC, false)
+        set(v) = plain.edit().putBoolean(KEY_BACKGROUND_SYNC, v).apply()
+
+    /** The background job already notified about an expired session (reset on login). */
+    var sessionExpiryNotified: Boolean
+        get() = plain.getBoolean(KEY_SESSION_NOTIFIED, false)
+        set(v) = plain.edit().putBoolean(KEY_SESSION_NOTIFIED, v).apply()
 
     /** Custom tariff table; the default one when never edited or equal to the old wrong default. */
     var tariffs: TariffTable
@@ -117,5 +145,8 @@ class SettingsStore(context: Context) {
         const val KEY_CUSTOMER = "customer"
         const val KEY_LAST_SYNC = "last_sync"
         const val KEY_LOGGED_IN = "logged_in"
+        const val KEY_REPORT_PREFS = "report_prefs"
+        const val KEY_BACKGROUND_SYNC = "background_sync"
+        const val KEY_SESSION_NOTIFIED = "session_expiry_notified"
     }
 }
