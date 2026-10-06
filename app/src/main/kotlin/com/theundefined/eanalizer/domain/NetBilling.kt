@@ -91,6 +91,9 @@ object NetBilling {
      * the first [simulation] row, typically 12): they are settled the same way so deposits created
      * then (and not used/expired yet) are available in the period, but they are not part of the
      * returned totals or months.
+     *
+     * [energyPrice] overrides the tariff's energy price per hour (gross zł/kWh, e.g. a dynamic
+     * tariff); distribution always comes from [tariff].
      */
     fun settle(
         simulation: List<SimulationRow>,
@@ -101,6 +104,7 @@ object NetBilling {
         valuation: NetBillingValuation = NetBillingValuation.RCEM,
         fixedFee: Double = 0.0,
         history: List<SimulationRow> = emptyList(),
+        energyPrice: ((LocalDateTime) -> Double)? = null,
     ): NetBillingResult? {
         if (simulation.isEmpty()) return null
         val reportStart = YearMonth.from(simulation.first().timestamp)
@@ -116,7 +120,8 @@ object NetBilling {
             val zp = table.resolve(row.timestamp, tariff)
             m.pobor += row.poborZSieci
             m.oddanie += row.oddanieDoSieci
-            m.kosztEnergii += row.poborZSieci * (zp?.energyPrice ?: 0.0)
+            val energy = energyPrice?.invoke(row.timestamp) ?: zp?.energyPrice ?: 0.0
+            m.kosztEnergii += row.poborZSieci * energy
             m.kosztDystrybucji += row.poborZSieci * (zp?.distPrice ?: 0.0)
             if (
                 valuation == NetBillingValuation.RCE &&
