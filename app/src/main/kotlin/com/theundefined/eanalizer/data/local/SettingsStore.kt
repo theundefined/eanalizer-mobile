@@ -34,6 +34,9 @@ data class AnalysisPrefs(
     val mode: SettlementMode = SettlementMode.NONE,
     val netMeteringRatio: Double = 0.8,
     val valuation: NetBillingValuation = NetBillingValuation.RCEM,
+    /** [Period.CUSTOM] range, ISO dates. */
+    val customFrom: String? = null,
+    val customTo: String? = null,
 )
 
 /**

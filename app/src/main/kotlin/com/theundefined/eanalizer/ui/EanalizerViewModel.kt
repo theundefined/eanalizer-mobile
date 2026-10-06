@@ -146,7 +146,9 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             Periods.resolve(
                 prefs.period,
                 all.first().timestamp.toLocalDate(),
-                all.last().timestamp.toLocalDate()
+                all.last().timestamp.toLocalDate(),
+                prefs.customFrom?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+                prefs.customTo?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
             )
         val recs = Periods.filter(all, from, to)
         if (recs.isEmpty()) return null

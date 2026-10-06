@@ -33,4 +33,5 @@ val Period.label: Int
             Period.CURRENT_YEAR -> R.string.period_current_year
             Period.PREVIOUS_YEAR -> R.string.period_previous_year
             Period.ALL -> R.string.period_all
+            Period.CUSTOM -> R.string.period_custom
         }

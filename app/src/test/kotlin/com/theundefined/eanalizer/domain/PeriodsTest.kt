@@ -46,6 +46,20 @@ class PeriodsTest {
     fun clampsToEarliestData() =
         check(Period.LAST_365_DAYS, "2026-07-31", "2026-06-01", "2026-07-31", d("2026-06-01"))
 
+    @Test
+    fun custom() {
+        val start = d("2023-01-01")
+        val end = d("2026-09-30")
+        fun r(from: String?, to: String?) =
+            Periods.resolve(Period.CUSTOM, start, end, from?.let(::d), to?.let(::d))
+        assertEquals(d("2025-03-01") to d("2025-08-31"), r("2025-03-01", "2025-08-31"))
+        // Clamped to the data, swapped when reversed, all data when not set.
+        assertEquals(start to end, r("2020-01-01", "2030-01-01"))
+        assertEquals(d("2025-03-01") to d("2025-08-31"), r("2025-08-31", "2025-03-01"))
+        assertEquals(start to end, r(null, null))
+        assertEquals(end to end, r("2027-01-01", "2027-02-01"))
+    }
+
     @Test fun all() = check(Period.ALL, "2026-07-31", "2026-06-01", "2026-07-31", d("2026-06-01"))
 
     @Test

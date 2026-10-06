@@ -2,6 +2,7 @@
     <string name="app_name">eAnalizer</string>
     <string name="cancel">Cancel</string>
     <string name="save">Save</string>
+    <string name="ok">OK</string>
     <string name="settings">Settings</string>
     <string name="refresh">Refresh</string>
     <string name="back">Back</string>
@@ -52,6 +53,8 @@
     <string name="period_current_year">Current year</string>
     <string name="period_previous_year">Previous year</string>
     <string name="period_all">All</string>
+    <string name="period_custom">Date range…</string>
+    <string name="period_custom_title">Analysis range</string>
     <string name="tariff">Tariff</string>
     <string name="storage_capacity">Energy storage [kWh]</string>
     <string name="storage_efficiency">Storage efficiency [%]</string>

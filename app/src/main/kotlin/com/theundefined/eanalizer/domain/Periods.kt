@@ -14,15 +14,23 @@ enum class Period {
     CURRENT_YEAR,
     PREVIOUS_YEAR,
     ALL,
+
+    /** User-chosen date range. */
+    CUSTOM,
 }
 
 /** Date-range helpers. Periods are relative to the last date in the data, not today. */
 object Periods {
-    /** Inclusive `(from, to)` for [period]; start is clamped to [dataStart]. */
+    /**
+     * Inclusive `(from, to)` for [period]; start is clamped to [dataStart]. [Period.CUSTOM] uses
+     * [customFrom]/[customTo] clamped to the data (all data when not set).
+     */
     fun resolve(
         period: Period,
         dataStart: LocalDate,
-        dataEnd: LocalDate
+        dataEnd: LocalDate,
+        customFrom: LocalDate? = null,
+        customTo: LocalDate? = null,
     ): Pair<LocalDate, LocalDate> {
         val end = dataEnd
         fun clamp(from: LocalDate, to: LocalDate = end) = maxOf(from, dataStart) to to
@@ -39,6 +47,11 @@ object Periods {
             Period.PREVIOUS_YEAR ->
                 clamp(LocalDate.of(end.year - 1, 1, 1), LocalDate.of(end.year - 1, 12, 31))
             Period.ALL -> dataStart to end
+            Period.CUSTOM -> {
+                if (customFrom == null || customTo == null) return dataStart to end
+                val from = minOf(customFrom, customTo).coerceIn(dataStart, end)
+                from to maxOf(customFrom, customTo).coerceIn(from, end)
+            }
         }
     }
 

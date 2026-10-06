@@ -2,6 +2,7 @@
     <string name="app_name">eAnalizer</string>
     <string name="cancel">Anuluj</string>
     <string name="save">Zapisz</string>
+    <string name="ok">OK</string>
     <string name="settings">Ustawienia</string>
     <string name="refresh">Odśwież</string>
     <string name="back">Wstecz</string>
@@ -54,6 +55,8 @@
     <string name="period_current_year">Bieżący rok</string>
     <string name="period_previous_year">Poprzedni rok</string>
     <string name="period_all">Wszystko</string>
+    <string name="period_custom">Zakres dat…</string>
+    <string name="period_custom_title">Zakres analizy</string>
     <string name="tariff">Taryfa</string>
     <string name="storage_capacity">Magazyn energii [kWh]</string>
     <string name="storage_efficiency">Sprawność magazynu [%]</string>

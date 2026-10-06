@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
@@ -14,9 +17,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,14 +44,45 @@ import com.theundefined.eanalizer.ui.label
 import com.theundefined.eanalizer.ui.num
 import com.theundefined.eanalizer.ui.parseDecimal
 import com.theundefined.eanalizer.ui.zl
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @Composable
 fun ParamsCard(state: UiState, onChange: ((AnalysisPrefs) -> AnalysisPrefs) -> Unit) {
     val prefs = state.prefs
     SectionCard(title = stringResource(R.string.params)) {
         MutedText(stringResource(R.string.period))
-        ChipRow(Period.entries, prefs.period, { stringResource(it.label) }) { p ->
-            onChange { it.copy(period = p) }
+        var pickRange by remember { mutableStateOf(false) }
+        val custom = state.analysis?.takeIf { prefs.period == Period.CUSTOM }
+        // The custom range goes first so it is visible without scrolling the chips.
+        ChipRow(
+            listOf(Period.CUSTOM) + Period.entries.minus(Period.CUSTOM),
+            prefs.period,
+            { p ->
+                if (p == Period.CUSTOM && custom != null) "${custom.from} – ${custom.to}"
+                else stringResource(p.label)
+            },
+        ) { p ->
+            if (p == Period.CUSTOM) pickRange = true else onChange { it.copy(period = p) }
+        }
+        if (pickRange) {
+            DateRangeDialog(
+                initialFrom = state.analysis?.from,
+                initialTo = state.analysis?.to,
+                dataStart = state.dataStart,
+                dataEnd = state.dataEnd,
+                onDismiss = { pickRange = false },
+            ) { from, to ->
+                pickRange = false
+                onChange {
+                    it.copy(
+                        period = Period.CUSTOM,
+                        customFrom = from.toString(),
+                        customTo = to.toString(),
+                    )
+                }
+            }
         }
         MutedText(stringResource(R.string.tariff))
         val selectedTariff =
@@ -241,6 +277,63 @@ fun NetBillingRows(
         TextButton(onClick = onRetry, enabled = retryEnabled) {
             Text(stringResource(R.string.nb_retry_prices))
         }
+    }
+}
+
+/** Material date range picker limited to the downloaded data (dates as UTC midnight millis). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateRangeDialog(
+    initialFrom: LocalDate?,
+    initialTo: LocalDate?,
+    dataStart: LocalDate?,
+    dataEnd: LocalDate?,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDate, LocalDate) -> Unit,
+) {
+    fun LocalDate.millis() = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    fun Long.date() = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+    val state =
+        rememberDateRangePickerState(
+            initialSelectedStartDateMillis = initialFrom?.millis(),
+            initialSelectedEndDateMillis = initialTo?.millis(),
+            initialDisplayedMonthMillis = (initialFrom ?: dataEnd)?.millis(),
+            yearRange = (dataStart?.year ?: 2000)..(dataEnd?.year ?: LocalDate.now().year),
+            selectableDates =
+                object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                        val d = utcTimeMillis.date()
+                        return (dataStart == null || d >= dataStart) &&
+                            (dataEnd == null || d <= dataEnd)
+                    }
+                },
+        )
+    val from = state.selectedStartDateMillis
+    val to = state.selectedEndDateMillis
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = { if (from != null) onConfirm(from.date(), (to ?: from).date()) },
+                enabled = from != null,
+            ) {
+                Text(stringResource(R.string.ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    ) {
+        DateRangePicker(
+            state = state,
+            title = {
+                Text(
+                    stringResource(R.string.period_custom_title),
+                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp),
+                )
+            },
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
