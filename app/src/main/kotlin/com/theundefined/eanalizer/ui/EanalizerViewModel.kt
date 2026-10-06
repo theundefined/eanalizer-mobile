@@ -25,7 +25,7 @@ import com.theundefined.eanalizer.domain.NetBilling
 import com.theundefined.eanalizer.domain.NetBillingValuation
 import com.theundefined.eanalizer.domain.Periods
 import com.theundefined.eanalizer.domain.RceAnalysis
-import com.theundefined.eanalizer.domain.StorageEconomics
+import com.theundefined.eanalizer.domain.StorageUsage
 import com.theundefined.eanalizer.domain.TariffTable
 import com.theundefined.eanalizer.domain.XlsxWriter
 import java.io.File
@@ -58,6 +58,9 @@ private data class AnalysisInput(
 )
 
 const val XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+/** Largest storage size simulated on the storage screen, kWh. */
+private const val MAX_STORAGE_KWH = 100.0
 
 class EanalizerViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = EneaRepository(application)
@@ -99,6 +102,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     private var rceJob: Job? = null
     private var pricesJob: Job? = null
     private var storageJob: Job? = null
+    private var storageDetailJob: Job? = null
     private var dynamicJob: Job? = null
 
     /** Bumped by [refreshPrices] to recompute the analysis with freshly downloaded PSE prices. */
@@ -208,7 +212,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                             prefs.capacity,
                             tariffs,
                             null,
-                            prefs.efficiency
+                            prefs.efficiency,
+                            prefs.storageOptions(),
                         )
                         .associate { it.tariff to it.simulation }
 
@@ -233,11 +238,19 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     tariffs,
                     tariff,
                     ratio,
-                    prefs.efficiency
+                    prefs.efficiency,
+                    prefs.storageOptions(),
                 )
             val nb = settle(result)
             val comparison =
-                Analyzer.compareTariffs(recs, prefs.capacity, tariffs, ratio, prefs.efficiency)
+                Analyzer.compareTariffs(
+                        recs,
+                        prefs.capacity,
+                        tariffs,
+                        ratio,
+                        prefs.efficiency,
+                        prefs.storageOptions(),
+                    )
                     .map { r ->
                         val s = settle(r)
                         ComparisonRow(r.tariff, s?.calkowityKoszt ?: r.totalCost, r.fixedFees, s)
@@ -270,20 +283,26 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Total cost of [inputs] with a storage of [capacity] kWh (same settlement as the analysis).
+     * Simulation of [inputs] with a storage of [capacity] kWh on [tariff] and its total cost (same
+     * settlement as the analysis).
      */
-    private fun costWithStorage(inputs: AnalysisInputs, capacity: Double): Double {
+    private fun runWithStorage(
+        inputs: AnalysisInputs,
+        capacity: Double,
+        tariff: String = inputs.tariff,
+    ): Pair<AnalysisResult, Double> {
         val p = inputs.prefs
         val r =
             Analyzer.runFullAnalysis(
                 inputs.records,
                 capacity,
                 inputs.tariffs,
-                inputs.tariff,
+                tariff,
                 inputs.netMeteringRatio,
                 p.efficiency,
+                p.storageOptions(),
             )
-        if (p.mode != SettlementMode.NET_BILLING) return r.totalCost
+        if (p.mode != SettlementMode.NET_BILLING) return r to r.totalCost
         val history =
             if (inputs.history.isEmpty()) emptyList()
             else
@@ -291,49 +310,109 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                         inputs.history,
                         capacity,
                         inputs.tariffs,
-                        inputs.tariff,
+                        tariff,
                         null,
                         p.efficiency,
+                        p.storageOptions(),
                     )
                     .simulation
-        return NetBilling.settle(
-                r.simulation,
-                inputs.tariffs,
-                inputs.tariff,
-                inputs.rce,
-                inputs.rcem,
-                p.valuation,
-                r.fixedFees,
-                history,
-            )
-            ?.calkowityKoszt ?: r.totalCost
+        val cost =
+            NetBilling.settle(
+                    r.simulation,
+                    inputs.tariffs,
+                    tariff,
+                    inputs.rce,
+                    inputs.rcem,
+                    p.valuation,
+                    r.fixedFees,
+                    history,
+                )
+                ?.calkowityKoszt ?: r.totalCost
+        return r to cost
     }
 
-    /** Computes the period cost for typical storage sizes (plus the current and suggested one). */
+    /**
+     * Computes the period cost for the compared storage sizes (plus the current and suggested one).
+     */
     fun loadStorage() {
         val a = _uiState.value.analysis ?: return
+        val caps =
+            (_uiState.value.reportPrefs.storageCapacities +
+                    0.0 +
+                    a.inputs.prefs.capacity +
+                    Math.round(a.optimalCapacity * 2) / 2.0)
+                .filter { it in 0.0..MAX_STORAGE_KWH }
+                .distinct()
+                .sorted()
+        val current = _uiState.value.storage
         if (
-            _uiState.value.storage.let {
-                it.forAnalysis === a && (it.loading || it.costs.isNotEmpty())
-            }
+            current.forAnalysis === a &&
+                current.capacities == caps &&
+                (current.loading || current.costs.isNotEmpty())
         )
             return
         storageJob?.cancel()
         storageJob =
             viewModelScope.launch {
-                _uiState.update { it.copy(storage = StorageState(loading = true, forAnalysis = a)) }
-                val caps =
-                    (StorageEconomics.CAPACITIES +
-                            a.inputs.prefs.capacity +
-                            Math.round(a.optimalCapacity * 2) / 2.0)
-                        .filter { it in 0.0..100.0 }
-                        .distinct()
-                        .sorted()
+                _uiState.update {
+                    it.copy(
+                        storage =
+                            // Same analysis: the detail of the selected size stays valid.
+                            if (current.detailFor === a)
+                                current.copy(loading = true, capacities = caps, costs = emptyMap())
+                            else StorageState(loading = true, forAnalysis = a, capacities = caps)
+                    )
+                }
                 val costs =
                     withContext(Dispatchers.Default) {
-                        caps.associateWith { costWithStorage(a.inputs, it) }
+                        caps.associateWith { runWithStorage(a.inputs, it).second }
                     }
-                _uiState.update { it.copy(storage = StorageState(forAnalysis = a, costs = costs)) }
+                _uiState.update {
+                    it.copy(
+                        storage =
+                            it.storage.copy(
+                                loading = false,
+                                forAnalysis = a,
+                                capacities = caps,
+                                costs = costs,
+                            )
+                    )
+                }
+            }
+    }
+
+    /** Usage and the per-tariff comparison of one storage size. */
+    fun loadStorageDetail(capacity: Double) {
+        val a = _uiState.value.analysis ?: return
+        val s = _uiState.value.storage
+        if (s.forAnalysis !== a) return
+        if (s.detail?.capacity == capacity && s.detailFor === a) return
+        storageDetailJob?.cancel()
+        storageDetailJob =
+            viewModelScope.launch {
+                val detail =
+                    withContext(Dispatchers.Default) {
+                        val (run, _) = runWithStorage(a.inputs, capacity)
+                        val usable = capacity * a.inputs.prefs.usableFraction.coerceIn(0.0, 1.0)
+                        StorageDetail(
+                            capacity = capacity,
+                            usage = StorageUsage.of(capacity, usable, run.simulation),
+                            tariffs =
+                                a.inputs.tariffs.tariffNames
+                                    .map { t ->
+                                        TariffStorageRow(
+                                            t,
+                                            runWithStorage(a.inputs, 0.0, t).second,
+                                            runWithStorage(a.inputs, capacity, t).second,
+                                        )
+                                    }
+                                    .sortedBy { it.withStorage },
+                        )
+                    }
+                _uiState.update {
+                    if (it.storage.forAnalysis !== a) it
+                    else it.copy(storage = it.storage.copy(detail = detail, detailFor = a))
+                }
             }
     }
 
@@ -373,6 +452,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                                         inputs.tariff,
                                         null,
                                         inputs.prefs.efficiency,
+                                        inputs.prefs.storageOptions(),
                                     )
                                     .simulation
                         DynamicTariff.cost(

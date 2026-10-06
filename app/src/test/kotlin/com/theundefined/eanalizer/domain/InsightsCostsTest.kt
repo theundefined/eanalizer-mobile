@@ -115,15 +115,40 @@ class CostsTest {
     @Test
     fun storageScenariosAnnualised() {
         val s =
-            StorageEconomics.scenarios(listOf(5.0, 10.0), days = 73, pricePerKwh = 1000.0) {
+            StorageEconomics.scenarios(listOf(5.0, 10.0), days = 73, StorageFinance(100.0)) {
                 100.0 - it * 2
             }
         assertEquals(listOf(0.0, 5.0, 10.0), s.map { it.capacity })
         assertEquals(0.0, s[0].annualSavings, eps)
         assertNull(s[0].paybackYears)
         assertEquals(50.0, s[1].annualSavings, eps) // 10 zł in 73 days -> 50 zł/year
-        assertEquals(5000.0, s[1].investment, eps)
-        assertEquals(100.0, s[1].paybackYears!!, eps)
+        assertEquals(500.0, s[1].investment, eps)
+        assertEquals(10.0, s[1].paybackYears!!, eps)
+        assertEquals(15 * 50.0 - 500.0, s[1].netGain, eps)
+        assertNull(s[0].marginalPerKwh)
+        assertEquals(10.0, s[1].marginalPerKwh!!, eps)
+        assertEquals(10.0, s[2].marginalPerKwh!!, eps)
+    }
+
+    @Test
+    fun storageFinanceSubsidyAndOutlook() {
+        val f =
+            StorageFinance(
+                pricePerKwh = 1000.0,
+                fixedCost = 4000.0,
+                subsidyShare = 0.5,
+                subsidyMax = 5000.0,
+            )
+        assertEquals(0.0, f.investment(0.0), eps)
+        assertEquals(3000.0, f.investment(2.0), eps) // 6000 - 50 %
+        assertEquals(9000.0, f.investment(10.0), eps) // 14000 - cap 5000
+        val g = StorageFinance(1000.0, degradation = 0.1, priceGrowth = 0.0)
+        assertEquals(100.0, g.yearSavings(100.0, 1), eps)
+        assertEquals(90.0, g.yearSavings(100.0, 2), eps)
+        assertEquals(1.5, StorageEconomics.payback(g, 100.0, 145.0)!!, eps)
+        assertNull(StorageEconomics.payback(g, 100.0, 1e6))
+        val d = StorageFinance(1000.0, discountRate = 0.1)
+        assertEquals(100.0 / 1.1, d.yearSavings(100.0, 1), eps)
     }
 
     @Test

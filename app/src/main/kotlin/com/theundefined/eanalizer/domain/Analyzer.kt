@@ -23,6 +23,21 @@ data class SimulationRow(
     val poborZMagazynu: Double,
     val oddanieDoMagazynu: Double,
     val stanMagazynu: Double,
+    /** Part of [oddanieDoMagazynu] taken from the grid (included in [poborZSieci]). */
+    val zSieciDoMagazynu: Double = 0.0,
+)
+
+/**
+ * Storage behaviour beyond capacity and efficiency. [usableFraction] of the capacity can be used
+ * (depth of discharge); [powerKw] limits charging and discharging per hour (0 = no limit). With
+ * [gridCharging] the storage is also charged from the grid in the cheapest zone of a multi-zone
+ * tariff, up to yesterday's deficit in the more expensive zones (a forecast that uses only past
+ * data), and is not discharged in the cheapest zone.
+ */
+data class StorageOptions(
+    val usableFraction: Double = 1.0,
+    val powerKw: Double = 0.0,
+    val gridCharging: Boolean = false,
 )
 
 data class AnalysisResult(
@@ -54,9 +69,10 @@ object Analyzer {
 
     /**
      * Simulates a physical storage of [capacity] kWh (0 = no storage) on pre-balancing volumes,
-     * [storageEfficiency] applied on charging, then prices consumption per zone. With
-     * [netMeteringRatio] exported energy becomes credit consumed in zones ordered by price (most
-     * expensive first), leftover credit rolling over to cheaper zones.
+     * [storageEfficiency] applied on charging, [options] for usable capacity, power and grid
+     * charging, then prices consumption per zone. With [netMeteringRatio] exported energy becomes
+     * credit consumed in zones ordered by price (most expensive first), leftover credit rolling
+     * over to cheaper zones.
      */
     fun runFullAnalysis(
         records: List<HourlyRecord>,
@@ -65,6 +81,7 @@ object Analyzer {
         tariff: String,
         netMeteringRatio: Double? = null,
         storageEfficiency: Double = 1.0,
+        options: StorageOptions = StorageOptions(),
     ): AnalysisResult {
         val months =
             if (records.isEmpty()) 0
@@ -73,37 +90,74 @@ object Analyzer {
                 val b = records.last().timestamp
                 (b.year - a.year) * 12 + (b.monthValue - a.monthValue) + 1
             }
+        val usable = capacity * options.usableFraction.coerceIn(0.0, 1.0)
+        val power = if (options.powerKw > 0) options.powerKw else Double.POSITIVE_INFINITY
+        // Cheapest price per day type (index 1 = weekend), set only when cheaper than another zone.
+        val cheapest =
+            listOf(false, true).map { weekend ->
+                val prices = table.hourlyZones(tariff, weekend).mapNotNull { it?.price }
+                val min = prices.minOrNull()
+                if (min != null && prices.any { it > min + 1e-9 }) min else null
+            }
         var stan = 0.0
+        var deficitYesterday = 0.0
+        var deficitToday = 0.0
+        var day: LocalDate? = null
         val sim = ArrayList<SimulationRow>(records.size)
         val acc = LinkedHashMap<String, ZoneAcc>()
 
         for (r in records) {
+            val date = r.timestamp.toLocalDate()
+            if (date != day) {
+                if (day != null) deficitYesterday = deficitToday
+                deficitToday = 0.0
+                day = date
+            }
+            val zp = table.resolve(r.timestamp, tariff)
+            val cheapHour =
+                options.gridCharging &&
+                    zp != null &&
+                    run {
+                        val weekend =
+                            r.timestamp.dayOfWeek.value >= 6 || PolishHolidays.isHoliday(date)
+                        val min = cheapest[if (weekend) 1 else 0]
+                        min != null && zp.price <= min + 1e-9
+                    }
             var zMag = 0.0
             var doMag = 0.0
+            var zSieciDoMag = 0.0
             var zSieci = 0.0
             var doSieci = 0.0
+            fun chargeRoom() =
+                if (storageEfficiency > 0) (usable - stan).coerceAtLeast(0.0) / storageEfficiency
+                else Double.POSITIVE_INFINITY
             if (r.oddaniePrzed > r.poborPrzed) {
                 val nadwyzka = r.oddaniePrzed - r.poborPrzed
-                val wolne = capacity - stan
-                val potrzebne =
-                    if (storageEfficiency > 0) wolne / storageEfficiency
-                    else Double.POSITIVE_INFINITY
-                doMag = minOf(nadwyzka, potrzebne)
+                doMag = minOf(nadwyzka, chargeRoom(), power)
                 stan += doMag * storageEfficiency
                 doSieci = nadwyzka - doMag
             } else if (r.poborPrzed > r.oddaniePrzed) {
                 val niedobor = r.poborPrzed - r.oddaniePrzed
-                zMag = minOf(niedobor, stan)
+                if (options.gridCharging && !cheapHour) deficitToday += niedobor
+                if (!cheapHour) zMag = minOf(niedobor, stan, power)
                 stan -= zMag
                 zSieci = niedobor - zMag
             }
-            table.resolve(r.timestamp, tariff)?.let { zp ->
-                val z = acc.getOrPut(zp.zone) { ZoneAcc(zp.price) }
+            if (cheapHour && storageEfficiency > 0) {
+                val target = minOf(usable, deficitYesterday)
+                val need = (target - stan).coerceAtLeast(0.0) / storageEfficiency
+                zSieciDoMag = minOf(need, chargeRoom(), (power - doMag).coerceAtLeast(0.0))
+                stan += zSieciDoMag * storageEfficiency
+                doMag += zSieciDoMag
+                zSieci += zSieciDoMag
+            }
+            zp?.let {
+                val z = acc.getOrPut(it.zone) { ZoneAcc(it.price) }
                 z.pobor += zSieci
                 z.oddanie += doSieci
                 z.koszt += zSieci * z.price
             }
-            sim += SimulationRow(r.timestamp, zSieci, doSieci, zMag, doMag, stan)
+            sim += SimulationRow(r.timestamp, zSieci, doSieci, zMag, doMag, stan, zSieciDoMag)
         }
 
         val zones: List<ZoneStats>
@@ -146,7 +200,9 @@ object Analyzer {
             totalCost = energyCost + fixed,
             fixedFees = fixed,
             energyCost = energyCost,
-            savings = poborPrzed - zones.sumOf { it.poborZSieci },
+            // Grid energy that went into the storage isn't consumption.
+            savings =
+                poborPrzed - zones.sumOf { it.poborZSieci } + sim.sumOf { it.zSieciDoMagazynu },
             unusedCredit = unused,
             months = months,
             totalPoborPrzed = poborPrzed,
@@ -162,11 +218,20 @@ object Analyzer {
         table: TariffTable,
         netMeteringRatio: Double? = null,
         storageEfficiency: Double = 1.0,
+        options: StorageOptions = StorageOptions(),
     ): List<AnalysisResult> {
         if (records.isEmpty()) return emptyList()
         return table.tariffNames
             .map {
-                runFullAnalysis(records, capacity, table, it, netMeteringRatio, storageEfficiency)
+                runFullAnalysis(
+                    records,
+                    capacity,
+                    table,
+                    it,
+                    netMeteringRatio,
+                    storageEfficiency,
+                    options,
+                )
             }
             .sortedBy { it.totalCost }
     }

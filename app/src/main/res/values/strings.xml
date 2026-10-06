@@ -215,15 +215,50 @@
     <string name="bills_fixed">Opłaty stałe</string>
     <string name="bills_total">Do zapłaty</string>
     <!-- Storage -->
-    <string name="storage_info">Koszt okresu z magazynem różnej pojemności (ta sama taryfa, sprawność i rozliczenie). Oszczędności przeliczone na rok.</string>
+    <string name="storage_info">Koszt okresu z magazynem różnej pojemności (ta sama taryfa i rozliczenie). Oszczędności przeliczone na rok, zysk w horyzoncie uwzględnia degradację, wzrost cen i dyskonto.</string>
     <string name="storage_price">Cena magazynu [zł/kWh pojemności]</string>
-    <string name="storage_price_hint">Koszt instalacji podzielony przez pojemność, np. 2500 zł/kWh.</string>
+    <string name="storage_price_hint">Cena za kWh pojemności (np. 2500 zł/kWh) plus koszt stały niezależny od pojemności (falownik hybrydowy, montaż).</string>
     <string name="storage_capacity_col">Pojemność</string>
     <string name="storage_cost_col">Koszt okresu</string>
     <string name="storage_savings_col">Oszczędność/rok</string>
     <string name="storage_payback_col">Zwrot</string>
     <string name="years">%1$s lat</string>
-    <string name="storage_legend">• obecne ustawienie, ★ najkrótszy zwrot. Prosty okres zwrotu, bez degradacji ogniw i zmian cen.</string>
+    <string name="storage_legend">• obecne ustawienie, ★ największy zysk po %1$d latach. Dla 0 kWh podany jest koszt okresu. Dotknij wiersza, aby zobaczyć szczegóły.</string>
+    <string name="storage_params">Parametry magazynu</string>
+    <string name="storage_power">Moc ładowania/rozładowania [kW]</string>
+    <string name="storage_usable">Pojemność użyteczna [%]</string>
+    <string name="storage_params_hint">Moc 0 = bez limitu. Pojemność użyteczna to głębokość rozładowania (DoD). Sprawność to sprawność pełnego cyklu, ładowanie i rozładowanie razem.</string>
+    <string name="storage_grid_charging">Ładowanie z sieci w tańszej strefie</string>
+    <string name="storage_grid_charging_hint">W najtańszej strefie taryfy wielostrefowej magazyn dobiera z sieci tyle, ile wczoraj zabrakło w droższych strefach, i nie rozładowuje się w tańszej strefie.</string>
+    <string name="storage_params_shared">Te parametry dotyczą też głównej analizy i porównania taryf.</string>
+    <string name="storage_finance">Koszty i założenia</string>
+    <string name="storage_fixed_cost">Koszt stały [zł]</string>
+    <string name="storage_subsidy_percent">Dotacja [% kosztów]</string>
+    <string name="storage_subsidy_max">Limit dotacji [zł]</string>
+    <string name="storage_degradation">Degradacja [%/rok]</string>
+    <string name="storage_price_growth">Wzrost cen [%/rok]</string>
+    <string name="storage_discount">Stopa dyskonta [%]</string>
+    <string name="storage_horizon">Horyzont [lat]</string>
+    <string name="storage_capacities">Porównywane pojemności [kWh]</string>
+    <string name="storage_capacities_hint">Oddzielone średnikiem, np. 2,5; 5; 10. Dochodzą obecne ustawienie i sugerowana pojemność. Limit dotacji 0 = bez limitu.</string>
+    <string name="storage_gain_chart">Zysk po %1$d latach</string>
+    <string name="storage_gain_hint">Dotknij słupka, aby wybrać pojemność</string>
+    <string name="storage_gain_value">%1$s kWh: %2$s, kolejna kWh pojemności: %3$s/rok</string>
+    <string name="storage_gain_col">Zysk %1$d l.</string>
+    <string name="storage_detail">Magazyn %1$s kWh</string>
+    <string name="storage_investment">Inwestycja po dotacji</string>
+    <string name="storage_payback_never">ponad %1$d lat</string>
+    <string name="storage_usable_kwh">Pojemność użyteczna</string>
+    <string name="storage_discharged">Energia z magazynu w okresie</string>
+    <string name="storage_cycles">Pełne cykle na rok</string>
+    <string name="storage_full_days">Dni z pełnym naładowaniem</string>
+    <string name="storage_from_grid">Ładowanie z sieci w okresie</string>
+    <string name="storage_still_exported">Nadal oddane do sieci</string>
+    <string name="storage_monthly">Energia z magazynu w miesiącach</string>
+    <string name="storage_tariffs">Magazyn a taryfa (koszt okresu)</string>
+    <string name="storage_without">Bez</string>
+    <string name="storage_with">Z magazynem</string>
+    <string name="storage_tariffs_hint">• obecna taryfa. Z magazynem najtańsza może być inna taryfa niż bez niego.</string>
     <!-- Year over year -->
     <string name="yoy_info">Wszystkie pobrane dane (niezależnie od wybranego okresu), wartości przed bilansowaniem.</string>
     <string name="yoy_year_a">Rok:</string>

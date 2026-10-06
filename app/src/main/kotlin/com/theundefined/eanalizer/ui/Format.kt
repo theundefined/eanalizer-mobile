@@ -22,6 +22,18 @@ fun dateTime(epochMillis: Long): String =
 /** Parses user input accepting both `,` and `.` as decimal separator. */
 fun parseDecimal(s: String): Double? = s.trim().replace(',', '.').toDoubleOrNull()
 
+/** Parses a list of numbers separated by `;` or whitespace; null if any item is invalid. */
+fun parseDecimalList(s: String): List<Double>? =
+    s.split(';', ' ', '\n', '\t').filter { it.isNotBlank() }.map { parseDecimal(it) ?: return null }
+
+/** Formats [values] for [parseDecimalList] (without trailing zeros). */
+fun formatDecimalList(values: List<Double>): String =
+    values.joinToString("; ") {
+        java.math.BigDecimal(it.toString()).stripTrailingZeros().toPlainString().let { t ->
+            if (Locale.getDefault().language == "pl") t.replace('.', ',') else t
+        }
+    }
+
 val Period.label: Int
     get() =
         when (this) {

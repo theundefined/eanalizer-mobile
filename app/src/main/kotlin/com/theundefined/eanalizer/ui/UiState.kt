@@ -14,6 +14,7 @@ import com.theundefined.eanalizer.domain.MonthlyBill
 import com.theundefined.eanalizer.domain.NetBillingResult
 import com.theundefined.eanalizer.domain.RceResult
 import com.theundefined.eanalizer.domain.SelfUseMonth
+import com.theundefined.eanalizer.domain.StorageUsage
 import com.theundefined.eanalizer.domain.TariffTable
 import com.theundefined.eanalizer.domain.YearMonths
 import java.time.LocalDate
@@ -72,7 +73,24 @@ class AnalysisInputs(
 data class StorageState(
     val loading: Boolean = false,
     val forAnalysis: Analysis? = null,
+    val capacities: List<Double> = emptyList(),
     val costs: Map<Double, Double> = emptyMap(),
+    val detail: StorageDetail? = null,
+    val detailFor: Analysis? = null,
+)
+
+/** Period cost of one tariff without and with the selected storage. */
+data class TariffStorageRow(
+    val tariff: String,
+    val withoutStorage: Double,
+    val withStorage: Double
+)
+
+/** Usage and the tariff comparison for one storage size. */
+data class StorageDetail(
+    val capacity: Double,
+    val usage: StorageUsage,
+    val tariffs: List<TariffStorageRow>,
 )
 
 /** Dynamic tariff estimate (computed on demand for one [Analysis] and margin). */

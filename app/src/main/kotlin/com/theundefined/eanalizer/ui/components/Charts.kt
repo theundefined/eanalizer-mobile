@@ -395,3 +395,69 @@ internal fun zoneHours(zones: List<ZonePrice?>, zone: String): String {
     }
     return runs.joinToString(", ") { (a, b) -> "$a–$b" }
 }
+
+/**
+ * One bar per key, negative values below the zero line in the error colour. Tapping a bar calls
+ * [onSelect] (or toggles the hint when [selected] is managed internally); [label] renders the
+ * selected bar's description, first/last keys are printed under the chart.
+ */
+@Composable
+fun ValueBarChart(
+    keys: List<String>,
+    values: List<Double>,
+    label: @Composable (Int) -> String,
+    hint: String,
+    modifier: Modifier = Modifier,
+    selected: Int? = null,
+    onSelect: ((Int) -> Unit)? = null,
+) {
+    if (keys.isEmpty()) return
+    val positive = MaterialTheme.colorScheme.primary
+    val negative = MaterialTheme.colorScheme.error
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    var own by remember(keys, values) { mutableStateOf<Int?>(null) }
+    val sel = if (onSelect != null) selected else own
+    val maxUp = values.maxOf { it }.coerceAtLeast(0.0)
+    val maxDown = (-values.minOf { it }).coerceAtLeast(0.0)
+    val total = (maxUp + maxDown).coerceAtLeast(0.001)
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        MutedText(if (sel != null) label(sel) else hint)
+        Canvas(
+            modifier =
+                Modifier.fillMaxWidth().height(140.dp).pointerInput(keys, onSelect) {
+                    detectTapGestures { pos ->
+                        val i = (pos.x / size.width * keys.size).toInt().coerceIn(0, keys.lastIndex)
+                        if (onSelect != null) onSelect(i) else own = if (own == i) null else i
+                    }
+                }
+        ) {
+            val zeroY = size.height * (maxUp / total).toFloat()
+            val slot = size.width / keys.size
+            val gap = if (slot > 12.dp.toPx()) 4.dp.toPx() else 1.dp.toPx()
+            val barW = (slot - gap).coerceAtLeast(1f)
+            val radius = minOf(4.dp.toPx(), barW / 2)
+            values.forEachIndexed { i, v ->
+                val alpha = if (sel == null || sel == i) 1f else 0.4f
+                val h = (kotlin.math.abs(v) / total * size.height).toFloat()
+                if (h <= 0f) return@forEachIndexed
+                val x = i * slot + gap / 2
+                if (v > 0)
+                    drawPath(
+                        roundedBar(x, zeroY - h, barW, h, radius, roundTop = true),
+                        positive.copy(alpha = alpha),
+                    )
+                else
+                    drawPath(
+                        roundedBar(x, zeroY, barW, h, radius, roundTop = false),
+                        negative.copy(alpha = alpha),
+                    )
+            }
+            drawLine(gridColor, Offset(0f, zeroY), Offset(size.width, zeroY), 1.dp.toPx())
+        }
+        Row(modifier = Modifier.fillMaxWidth()) {
+            MutedText(keys.first())
+            Box(Modifier.weight(1f))
+            if (keys.size > 1) MutedText(keys.last())
+        }
+    }
+}

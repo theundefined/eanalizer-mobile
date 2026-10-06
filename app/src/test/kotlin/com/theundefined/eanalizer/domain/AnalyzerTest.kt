@@ -94,6 +94,80 @@ class AnalyzerTest {
     }
 
     @Test
+    fun storagePowerAndUsableCapacity() {
+        val input =
+            listOf(
+                rec(at(2024, 5, 2, 12), op = 10.0),
+                rec(at(2024, 5, 2, 13), op = 10.0),
+                rec(at(2024, 5, 2, 20), pp = 3.0),
+            )
+        val s =
+            Analyzer.runFullAnalysis(
+                    input,
+                    10.0,
+                    table,
+                    "G12w",
+                    options = StorageOptions(usableFraction = 0.5, powerKw = 4.0),
+                )
+                .simulation
+        assertEquals(4.0, s[0].oddanieDoMagazynu, eps) // power limit
+        assertEquals(6.0, s[0].oddanieDoSieci, eps)
+        assertEquals(1.0, s[1].oddanieDoMagazynu, eps) // usable 5 kWh reached
+        assertEquals(5.0, s[1].stanMagazynu, eps)
+        assertEquals(3.0, s[2].poborZMagazynu, eps)
+    }
+
+    @Test
+    fun gridChargingInCheapZone() {
+        val g12 = TariffTable.default()
+        val input =
+            listOf(
+                rec(at(2024, 4, 3, 18), pp = 4.0), // Wednesday, day zone deficit
+                rec(at(2024, 4, 4, 2)), // night zone: charge yesterday's deficit
+                rec(at(2024, 4, 4, 18), pp = 3.0),
+                rec(at(2024, 4, 4, 23), pp = 2.0), // night: no discharge, top up
+            )
+        val r =
+            Analyzer.runFullAnalysis(
+                input,
+                5.0,
+                g12,
+                "G12",
+                storageEfficiency = 0.8,
+                options = StorageOptions(gridCharging = true),
+            )
+        val s = r.simulation
+        assertEquals(0.0, s[0].zSieciDoMagazynu, eps)
+        assertEquals(5.0, s[1].zSieciDoMagazynu, eps)
+        assertEquals(5.0, s[1].poborZSieci, eps)
+        assertEquals(4.0, s[1].stanMagazynu, eps)
+        assertEquals(3.0, s[2].poborZMagazynu, eps)
+        assertEquals(0.0, s[2].poborZSieci, eps)
+        assertEquals(0.0, s[3].poborZMagazynu, eps)
+        assertEquals(3.75, s[3].zSieciDoMagazynu, eps)
+        assertEquals(2.0 + 3.75, s[3].poborZSieci, eps)
+        // Only energy delivered from the storage counts as covered consumption.
+        assertEquals(3.0, r.savings, eps)
+        // Without grid charging nothing is bought for the storage.
+        val plain = Analyzer.runFullAnalysis(input, 5.0, g12, "G12", storageEfficiency = 0.8)
+        assertTrue(plain.simulation.all { it.zSieciDoMagazynu == 0.0 })
+    }
+
+    @Test
+    fun gridChargingIgnoredForSingleZone() {
+        val input = listOf(rec(at(2024, 4, 3, 18), pp = 4.0), rec(at(2024, 4, 4, 2)))
+        val r =
+            Analyzer.runFullAnalysis(
+                input,
+                5.0,
+                TariffTable.default(),
+                "G11",
+                options = StorageOptions(gridCharging = true),
+            )
+        assertTrue(r.simulation.all { it.zSieciDoMagazynu == 0.0 })
+    }
+
+    @Test
     fun monthsAndCaseInsensitiveFixedFee() {
         val input = listOf(rec(at(2023, 11, 30, 10), pp = 1.0), rec(at(2024, 2, 1, 10)))
         val r = Analyzer.runFullAnalysis(input, 0.0, table, "g12w")

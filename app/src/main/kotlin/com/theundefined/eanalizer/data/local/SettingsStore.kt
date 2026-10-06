@@ -7,6 +7,9 @@ import androidx.security.crypto.MasterKey
 import com.theundefined.eanalizer.data.remote.EneaCustomer
 import com.theundefined.eanalizer.domain.NetBillingValuation
 import com.theundefined.eanalizer.domain.Period
+import com.theundefined.eanalizer.domain.StorageEconomics
+import com.theundefined.eanalizer.domain.StorageFinance
+import com.theundefined.eanalizer.domain.StorageOptions
 import com.theundefined.eanalizer.domain.TariffTable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -37,7 +40,15 @@ data class AnalysisPrefs(
     /** [Period.CUSTOM] range, ISO dates. */
     val customFrom: String? = null,
     val customTo: String? = null,
-)
+    /** Usable share of the storage capacity (depth of discharge). */
+    val usableFraction: Double = 1.0,
+    /** Storage charge/discharge power limit, kW (0 = no limit). */
+    val powerKw: Double = 0.0,
+    /** Charge the storage from the grid in the cheapest zone. */
+    val gridCharging: Boolean = false,
+) {
+    fun storageOptions() = StorageOptions(usableFraction, powerKw, gridCharging)
+}
 
 /** Inputs of the reports that don't change the main analysis (no recomputation). */
 @Serializable
@@ -46,9 +57,36 @@ data class ReportPrefs(
     val pvAnnualKwh: Double = 0.0,
     /** Storage price for the payback estimate, zł per kWh of capacity. */
     val storagePricePerKwh: Double = 2500.0,
+    /** Storage cost independent of the size (hybrid inverter, mounting), zł. */
+    val storageFixedCost: Double = 0.0,
+    /** Subsidy share of the storage investment, %. */
+    val storageSubsidyPercent: Double = 0.0,
+    /** Subsidy cap, zł (0 = none). */
+    val storageSubsidyMax: Double = 0.0,
+    /** Yearly capacity loss, %. */
+    val storageDegradationPercent: Double = 2.0,
+    /** Yearly energy price growth, %. */
+    val priceGrowthPercent: Double = 3.0,
+    /** Yearly discount rate, %. */
+    val discountPercent: Double = 0.0,
+    val storageHorizonYears: Int = 15,
+    /** Storage sizes compared on the storage screen, kWh. */
+    val storageCapacities: List<Double> = StorageEconomics.CAPACITIES.drop(1),
     /** Dynamic tariff: seller margin added to RCE, net zł/kWh. */
     val dynamicMargin: Double = 0.10,
-)
+) {
+    fun storageFinance() =
+        StorageFinance(
+            pricePerKwh = storagePricePerKwh,
+            fixedCost = storageFixedCost,
+            subsidyShare = storageSubsidyPercent / 100,
+            subsidyMax = storageSubsidyMax,
+            degradation = storageDegradationPercent / 100,
+            priceGrowth = priceGrowthPercent / 100,
+            discountRate = discountPercent / 100,
+            horizonYears = storageHorizonYears,
+        )
+}
 
 /**
  * App settings. Credentials (used only to prefill the eBOK login form) are stored encrypted, not

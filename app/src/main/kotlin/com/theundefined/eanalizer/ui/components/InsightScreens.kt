@@ -1,21 +1,28 @@
 package com.theundefined.eanalizer.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,14 +37,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.theundefined.eanalizer.R
+import com.theundefined.eanalizer.data.local.ReportPrefs
 import com.theundefined.eanalizer.data.local.SettlementMode
 import com.theundefined.eanalizer.domain.AggregateRow
 import com.theundefined.eanalizer.domain.StorageEconomics
+import com.theundefined.eanalizer.domain.StorageScenario
 import com.theundefined.eanalizer.ui.Analysis
 import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.UiState
+import com.theundefined.eanalizer.ui.formatDecimalList
 import com.theundefined.eanalizer.ui.kwh
 import com.theundefined.eanalizer.ui.num
+import com.theundefined.eanalizer.ui.parseDecimalList
 import com.theundefined.eanalizer.ui.zl
 
 /** "Okres analizy: …" line shown on every report based on the selected period. */
@@ -121,7 +132,8 @@ fun BillsScreen(state: UiState, onBack: () -> Unit) {
 @Composable
 fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> Unit) {
     val a = state.analysis
-    LaunchedEffect(a) { if (a != null) viewModel.loadStorage() }
+    val rp = state.reportPrefs
+    LaunchedEffect(a, rp.storageCapacities) { if (a != null) viewModel.loadStorage() }
     SubScreen(stringResource(R.string.screen_storage), onBack) {
         item { MutedText(stringResource(R.string.storage_info)) }
         if (a == null) {
@@ -129,65 +141,329 @@ fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
             return@SubScreen
         }
         item { PeriodInfo(a) }
-        item {
-            SectionCard {
-                DecimalField(
-                    label = stringResource(R.string.storage_price),
-                    value = state.reportPrefs.storagePricePerKwh,
-                    modifier = Modifier.fillMaxWidth(),
-                    valid = { it >= 0 },
-                ) { v ->
-                    viewModel.updateReportPrefs { it.copy(storagePricePerKwh = v) }
-                }
-                MutedText(stringResource(R.string.storage_price_hint))
-            }
-        }
+        item { StorageParamsCard(state, viewModel) }
+        item { StorageFinanceCard(state, viewModel) }
         val s = state.storage
-        if (s.loading || s.forAnalysis !== a) {
+        if (s.loading || s.forAnalysis !== a || s.costs.isEmpty()) {
             item { SectionCard { LinearProgressIndicator(Modifier.fillMaxWidth()) } }
             return@SubScreen
         }
+        val finance = rp.storageFinance()
         val scenarios =
             StorageEconomics.scenarios(
                 s.costs.keys,
                 java.time.temporal.ChronoUnit.DAYS.between(a.from, a.to).toInt() + 1,
-                state.reportPrefs.storagePricePerKwh,
+                finance,
             ) {
                 s.costs.getValue(it)
             }
-        val best = scenarios.filter { it.paybackYears != null }.minByOrNull { it.paybackYears!! }
+        val sized = scenarios.filter { it.capacity > 0 }
+        val best = sized.filter { it.netGain > 0 }.maxByOrNull { it.netGain }
         item {
-            SectionCard {
-                val w = listOf(0.9f, 1.1f, 1.1f, 0.9f)
-                TableRow(
-                    listOf(
-                        stringResource(R.string.storage_capacity_col),
-                        stringResource(R.string.storage_cost_col),
-                        stringResource(R.string.storage_savings_col),
-                        stringResource(R.string.storage_payback_col),
-                    ),
-                    header = true,
-                    weights = w,
-                )
-                scenarios.forEach { sc ->
-                    val marks = buildString {
-                        if (sc.capacity == state.prefs.capacity) append(" •")
-                        if (sc == best) append(" ★")
-                    }
-                    TableRow(
-                        listOf(
-                            num(sc.capacity, 1) + " kWh" + marks,
-                            zl(sc.cost),
-                            if (sc.capacity == 0.0) "—" else zl(sc.annualSavings),
-                            sc.paybackYears?.let { stringResource(R.string.years, num(it, 1)) }
-                                ?: "—",
-                        ),
-                        weights = w,
+            var picked by rememberSaveable(a.from, a.to) { mutableStateOf<Double?>(null) }
+            val selected =
+                sized.firstOrNull { it.capacity == picked }
+                    ?: best
+                    ?: sized.firstOrNull { it.capacity == a.inputs.prefs.capacity }
+                    ?: sized.firstOrNull()
+            LaunchedEffect(selected?.capacity, s.forAnalysis) {
+                selected?.let { viewModel.loadStorageDetail(it.capacity) }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionCard(
+                    title = stringResource(R.string.storage_gain_chart, finance.horizonYears)
+                ) {
+                    ValueBarChart(
+                        keys = sized.map { num(it.capacity, 1) + " kWh" },
+                        values = sized.map { it.netGain },
+                        label = { i ->
+                            val sc = sized[i]
+                            stringResource(
+                                R.string.storage_gain_value,
+                                num(sc.capacity, 1),
+                                zl(sc.netGain),
+                                sc.marginalPerKwh?.let { zl(it) } ?: "—",
+                            )
+                        },
+                        hint = stringResource(R.string.storage_gain_hint),
+                        selected = sized.indexOf(selected).takeIf { it >= 0 },
+                        onSelect = { picked = sized[it].capacity },
                     )
                 }
-                HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                MutedText(stringResource(R.string.storage_legend))
+                SectionCard {
+                    val w = listOf(1.0f, 1.0f, 0.8f, 1.1f)
+                    TableRow(
+                        listOf(
+                            stringResource(R.string.storage_capacity_col),
+                            stringResource(R.string.storage_savings_col),
+                            stringResource(R.string.storage_payback_col),
+                            stringResource(R.string.storage_gain_col, finance.horizonYears),
+                        ),
+                        header = true,
+                        weights = w,
+                    )
+                    scenarios.forEach { sc ->
+                        val marks = buildString {
+                            if (sc.capacity == a.inputs.prefs.capacity) append(" •")
+                            if (sc == best) append(" ★")
+                        }
+                        Box(
+                            Modifier.clickable(enabled = sc.capacity > 0) { picked = sc.capacity }
+                                .then(
+                                    if (sc == selected)
+                                        Modifier.background(
+                                            MaterialTheme.colorScheme.secondaryContainer,
+                                            RoundedCornerShape(4.dp),
+                                        )
+                                    else Modifier
+                                )
+                                .padding(vertical = 2.dp)
+                        ) {
+                            TableRow(
+                                listOf(
+                                    num(sc.capacity, 1) + " kWh" + marks,
+                                    if (sc.capacity == 0.0) zl(sc.cost) else zl(sc.annualSavings),
+                                    sc.paybackYears?.let {
+                                        stringResource(R.string.years, num(it, 1))
+                                    } ?: "—",
+                                    if (sc.capacity == 0.0) "—" else zl(sc.netGain),
+                                ),
+                                weights = w,
+                            )
+                        }
+                    }
+                    HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                    MutedText(stringResource(R.string.storage_legend, finance.horizonYears))
+                }
+                if (selected != null) StorageDetailCard(state, a, selected)
             }
+        }
+    }
+}
+
+/** Physical storage parameters; they're part of the analysis settings. */
+@Composable
+private fun StorageParamsCard(state: UiState, viewModel: EanalizerViewModel) {
+    val prefs = state.prefs
+    SectionCard(title = stringResource(R.string.storage_params)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DecimalField(
+                label = stringResource(R.string.storage_power),
+                value = prefs.powerKw,
+                modifier = Modifier.weight(1f),
+                valid = { it >= 0 },
+            ) { v ->
+                viewModel.updatePrefs { it.copy(powerKw = v) }
+            }
+            DecimalField(
+                label = stringResource(R.string.storage_usable),
+                value = Math.round(prefs.usableFraction * 1000) / 10.0,
+                modifier = Modifier.weight(1f),
+                valid = { it > 0 && it <= 100 },
+            ) { v ->
+                viewModel.updatePrefs { it.copy(usableFraction = v / 100) }
+            }
+        }
+        DecimalField(
+            label = stringResource(R.string.storage_efficiency),
+            value = Math.round(prefs.efficiency * 1000) / 10.0,
+            modifier = Modifier.fillMaxWidth(),
+            valid = { it > 0 && it <= 100 },
+        ) { v ->
+            viewModel.updatePrefs { it.copy(efficiency = v / 100) }
+        }
+        MutedText(stringResource(R.string.storage_params_hint))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.storage_grid_charging))
+                MutedText(stringResource(R.string.storage_grid_charging_hint))
+            }
+            Switch(
+                checked = prefs.gridCharging,
+                onCheckedChange = { on -> viewModel.updatePrefs { it.copy(gridCharging = on) } },
+            )
+        }
+        MutedText(stringResource(R.string.storage_params_shared))
+    }
+}
+
+/** Investment, subsidy and long-term assumptions (report settings only). */
+@Composable
+private fun StorageFinanceCard(state: UiState, viewModel: EanalizerViewModel) {
+    val rp = state.reportPrefs
+    fun update(t: (ReportPrefs) -> ReportPrefs) = viewModel.updateReportPrefs(t)
+    SectionCard(title = stringResource(R.string.storage_finance)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DecimalField(
+                label = stringResource(R.string.storage_price),
+                value = rp.storagePricePerKwh,
+                modifier = Modifier.weight(1f),
+                valid = { it >= 0 },
+            ) { v ->
+                update { it.copy(storagePricePerKwh = v) }
+            }
+            DecimalField(
+                label = stringResource(R.string.storage_fixed_cost),
+                value = rp.storageFixedCost,
+                modifier = Modifier.weight(1f),
+                valid = { it >= 0 },
+            ) { v ->
+                update { it.copy(storageFixedCost = v) }
+            }
+        }
+        MutedText(stringResource(R.string.storage_price_hint))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DecimalField(
+                label = stringResource(R.string.storage_subsidy_percent),
+                value = rp.storageSubsidyPercent,
+                modifier = Modifier.weight(1f),
+                valid = { it in 0.0..100.0 },
+            ) { v ->
+                update { it.copy(storageSubsidyPercent = v) }
+            }
+            DecimalField(
+                label = stringResource(R.string.storage_subsidy_max),
+                value = rp.storageSubsidyMax,
+                modifier = Modifier.weight(1f),
+                valid = { it >= 0 },
+            ) { v ->
+                update { it.copy(storageSubsidyMax = v) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DecimalField(
+                label = stringResource(R.string.storage_degradation),
+                value = rp.storageDegradationPercent,
+                modifier = Modifier.weight(1f),
+                valid = { it in 0.0..50.0 },
+            ) { v ->
+                update { it.copy(storageDegradationPercent = v) }
+            }
+            DecimalField(
+                label = stringResource(R.string.storage_price_growth),
+                value = rp.priceGrowthPercent,
+                modifier = Modifier.weight(1f),
+                valid = { it in -50.0..100.0 },
+            ) { v ->
+                update { it.copy(priceGrowthPercent = v) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DecimalField(
+                label = stringResource(R.string.storage_discount),
+                value = rp.discountPercent,
+                modifier = Modifier.weight(1f),
+                valid = { it in 0.0..50.0 },
+            ) { v ->
+                update { it.copy(discountPercent = v) }
+            }
+            DecimalField(
+                label = stringResource(R.string.storage_horizon),
+                value = rp.storageHorizonYears.toDouble(),
+                modifier = Modifier.weight(1f),
+                valid = { it >= 1 && it <= 40 && it == Math.floor(it) },
+            ) { v ->
+                update { it.copy(storageHorizonYears = v.toInt()) }
+            }
+        }
+        CapacityListField(rp.storageCapacities) { list ->
+            update { it.copy(storageCapacities = list) }
+        }
+        MutedText(stringResource(R.string.storage_capacities_hint))
+    }
+}
+
+@Composable
+private fun CapacityListField(value: List<Double>, onValue: (List<Double>) -> Unit) {
+    var text by remember { mutableStateOf(formatDecimalList(value)) }
+    LaunchedEffect(value) { if (parseDecimalList(text) != value) text = formatDecimalList(value) }
+    fun valid(l: List<Double>?) =
+        l != null && l.isNotEmpty() && l.size <= 15 && l.all { it > 0 && it <= 100 }
+    OutlinedTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            val l = parseDecimalList(it)
+            if (valid(l)) onValue(l!!.distinct().sorted())
+        },
+        label = { Text(stringResource(R.string.storage_capacities), maxLines = 1) },
+        isError = !valid(parseDecimalList(text)),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** Investment, usage, monthly discharge and the tariff comparison for [sc]. */
+@Composable
+private fun StorageDetailCard(state: UiState, a: Analysis, sc: StorageScenario) {
+    val d = state.storage.detail?.takeIf { it.capacity == sc.capacity }
+    SectionCard(title = stringResource(R.string.storage_detail, num(sc.capacity, 1))) {
+        ValueRow(stringResource(R.string.storage_investment), zl(sc.investment))
+        ValueRow(stringResource(R.string.storage_savings_col), zl(sc.annualSavings))
+        ValueRow(
+            stringResource(R.string.storage_payback_col),
+            sc.paybackYears?.let { stringResource(R.string.years, num(it, 1)) }
+                ?: stringResource(
+                    R.string.storage_payback_never,
+                    StorageEconomics.MAX_PAYBACK_YEARS,
+                ),
+        )
+        if (d == null) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+            return@SectionCard
+        }
+        val u = d.usage
+        val days = java.time.temporal.ChronoUnit.DAYS.between(a.from, a.to).toInt() + 1
+        val perYear = if (days > 0) 365.0 / days else 0.0
+        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+        ValueRow(stringResource(R.string.storage_usable_kwh), kwh(u.usable))
+        ValueRow(stringResource(R.string.storage_discharged), kwh(u.discharged))
+        ValueRow(stringResource(R.string.storage_cycles), num(u.cycles * perYear, 0))
+        ValueRow(stringResource(R.string.storage_full_days), pct(u.fullDays))
+        if (u.fromGrid > 0) ValueRow(stringResource(R.string.storage_from_grid), kwh(u.fromGrid))
+        ValueRow(stringResource(R.string.storage_still_exported), kwh(u.exported))
+        if (u.monthly.size > 1) {
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            Text(
+                stringResource(R.string.storage_monthly),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            ValueBarChart(
+                keys = u.monthly.map { it.first.toString() },
+                values = u.monthly.map { it.second },
+                label = { i -> "${u.monthly[i].first}: ${kwh(u.monthly[i].second)}" },
+                hint = stringResource(R.string.chart_hint),
+            )
+        }
+        if (d.tariffs.size > 1) {
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            Text(
+                stringResource(R.string.storage_tariffs),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            val w = listOf(0.8f, 1.1f, 1.1f, 1.1f)
+            TableRow(
+                listOf(
+                    stringResource(R.string.tariff),
+                    stringResource(R.string.storage_without),
+                    stringResource(R.string.storage_with),
+                    stringResource(R.string.storage_savings_col),
+                ),
+                header = true,
+                weights = w,
+            )
+            d.tariffs.forEach { t ->
+                TableRow(
+                    listOf(
+                        t.tariff + if (t.tariff == a.inputs.tariff) " •" else "",
+                        zl(t.withoutStorage),
+                        zl(t.withStorage),
+                        zl((t.withoutStorage - t.withStorage) * perYear),
+                    ),
+                    weights = w,
+                )
+            }
+            MutedText(stringResource(R.string.storage_tariffs_hint))
         }
     }
 }

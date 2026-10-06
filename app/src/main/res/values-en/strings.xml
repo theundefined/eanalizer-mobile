@@ -213,15 +213,50 @@
     <string name="bills_fixed">Fixed fees</string>
     <string name="bills_total">To pay</string>
     <!-- Storage -->
-    <string name="storage_info">Cost of the period with storages of different capacity (same tariff, efficiency and settlement). Savings scaled to a year.</string>
+    <string name="storage_info">Period cost with storage of different sizes (same tariff and settlement). Savings scaled to a year; the gain over the horizon accounts for degradation, price growth and discounting.</string>
     <string name="storage_price">Storage price [zł/kWh of capacity]</string>
-    <string name="storage_price_hint">Installation cost divided by capacity, e.g. 2500 zł/kWh.</string>
+    <string name="storage_price_hint">Price per kWh of capacity (e.g. 2500 zł/kWh) plus a fixed cost independent of the size (hybrid inverter, installation).</string>
     <string name="storage_capacity_col">Capacity</string>
     <string name="storage_cost_col">Period cost</string>
     <string name="storage_savings_col">Savings/year</string>
     <string name="storage_payback_col">Payback</string>
     <string name="years">%1$s years</string>
-    <string name="storage_legend">• current setting, ★ shortest payback. Simple payback, without cell degradation or price changes.</string>
+    <string name="storage_legend">• current setting, ★ highest gain after %1$d years. For 0 kWh the period cost is shown. Tap a row for details.</string>
+    <string name="storage_params">Storage parameters</string>
+    <string name="storage_power">Charge/discharge power [kW]</string>
+    <string name="storage_usable">Usable capacity [%]</string>
+    <string name="storage_params_hint">Power 0 = no limit. Usable capacity is the depth of discharge (DoD). Efficiency is the full-cycle (round-trip) efficiency.</string>
+    <string name="storage_grid_charging">Charge from the grid in the cheaper zone</string>
+    <string name="storage_grid_charging_hint">In the cheapest zone of a multi-zone tariff the storage takes from the grid what was missing in the more expensive zones yesterday, and isn\'t discharged in the cheaper zone.</string>
+    <string name="storage_params_shared">These parameters also apply to the main analysis and the tariff comparison.</string>
+    <string name="storage_finance">Costs and assumptions</string>
+    <string name="storage_fixed_cost">Fixed cost [zł]</string>
+    <string name="storage_subsidy_percent">Subsidy [% of cost]</string>
+    <string name="storage_subsidy_max">Subsidy cap [zł]</string>
+    <string name="storage_degradation">Degradation [%/year]</string>
+    <string name="storage_price_growth">Price growth [%/year]</string>
+    <string name="storage_discount">Discount rate [%]</string>
+    <string name="storage_horizon">Horizon [years]</string>
+    <string name="storage_capacities">Compared sizes [kWh]</string>
+    <string name="storage_capacities_hint">Separated by semicolons, e.g. 2.5; 5; 10. The current setting and the suggested size are added. Subsidy cap 0 = no cap.</string>
+    <string name="storage_gain_chart">Gain after %1$d years</string>
+    <string name="storage_gain_hint">Tap a bar to select a size</string>
+    <string name="storage_gain_value">%1$s kWh: %2$s, next kWh of capacity: %3$s/year</string>
+    <string name="storage_gain_col">Gain %1$d y.</string>
+    <string name="storage_detail">Storage %1$s kWh</string>
+    <string name="storage_investment">Investment after subsidy</string>
+    <string name="storage_payback_never">over %1$d years</string>
+    <string name="storage_usable_kwh">Usable capacity</string>
+    <string name="storage_discharged">Energy from storage in the period</string>
+    <string name="storage_cycles">Full cycles per year</string>
+    <string name="storage_full_days">Days fully charged</string>
+    <string name="storage_from_grid">Grid charging in the period</string>
+    <string name="storage_still_exported">Still exported</string>
+    <string name="storage_monthly">Energy from storage by month</string>
+    <string name="storage_tariffs">Storage and tariff (period cost)</string>
+    <string name="storage_without">Without</string>
+    <string name="storage_with">With storage</string>
+    <string name="storage_tariffs_hint">• current tariff. With storage a different tariff may be the cheapest.</string>
     <!-- Year over year -->
     <string name="yoy_info">All downloaded data (regardless of the selected period), values before balancing.</string>
     <string name="yoy_year_a">Year:</string>
