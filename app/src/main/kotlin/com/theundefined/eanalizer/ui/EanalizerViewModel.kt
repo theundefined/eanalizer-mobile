@@ -22,8 +22,11 @@ import com.theundefined.eanalizer.domain.RceAnalysis
 import com.theundefined.eanalizer.domain.TariffTable
 import java.io.File
 import java.io.IOException
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
+import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -80,10 +83,10 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     private val records = MutableStateFlow<List<HourlyRecord>?>(null)
     private var syncJob: Job? = null
     private var rceJob: Job? = null
+    private var pricesJob: Job? = null
 
-    /** Bumped by [retryPrices] to recompute the analysis with freshly downloaded PSE prices. */
+    /** Bumped by [refreshPrices] to recompute the analysis with freshly downloaded PSE prices. */
     private val pricesRetry = MutableStateFlow(0)
-    private var pricesRetryDone = 0
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -91,10 +94,11 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             val hasPassword = settings.password.isNotEmpty()
             _uiState.update { it.copy(email = email, hasPassword = hasPassword) }
         }
-        // Cache-then-refresh: local data first, then a background sync when logged in.
+        // Cache-then-refresh: local data first, then a background sync when logged in and the
+        // data was not downloaded today yet.
         viewModelScope.launch {
             reloadRecords()
-            if (settings.loggedIn) sync(quiet = true)
+            if (settings.loggedIn && !isToday(settings.lastSync)) sync(quiet = true)
         }
         viewModelScope.launch {
             // Only records/prefs/tariffs matter; other state changes must not restart analysis.
@@ -102,17 +106,18 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     AnalysisInput(recs, s.prefs, s.tariffs, retry)
                 }
                 .distinctUntilChanged()
-                .collectLatest { (recs, prefs, tariffs, retry) ->
+                .collectLatest { (recs, prefs, tariffs, _) ->
                     if (recs == null) return@collectLatest
                     if (recs.isEmpty()) {
                         _uiState.update { it.copy(analysis = null, analyzing = false) }
                         return@collectLatest
                     }
                     _uiState.update { it.copy(analyzing = true) }
-                    val force = retry > pricesRetryDone
-                    val analysis = analyze(recs, prefs, tariffs, forcePrices = force)
-                    pricesRetryDone = retry
-                    _uiState.update { it.copy(analysis = analysis, analyzing = false) }
+                    val analysis = analyze(recs, prefs, tariffs)
+                    val fetchedAt = repo.pricesFetchedAt()
+                    _uiState.update {
+                        it.copy(analysis = analysis, analyzing = false, pricesFetchedAt = fetchedAt)
+                    }
                 }
         }
     }
@@ -136,7 +141,6 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         all: List<HourlyRecord>,
         prefs: AnalysisPrefs,
         tariffs: TariffTable,
-        forcePrices: Boolean = false,
     ): Analysis? {
         val (from, to) =
             Periods.resolve(
@@ -158,7 +162,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         var pricesUnavailable = false
         if (prefs.mode == SettlementMode.NET_BILLING) {
             val months = NetBilling.monthsOf(recs)
-            rcem = runCatching { repo.rcemPrices(months, forcePrices) }.getOrDefault(emptyMap())
+            rcem = runCatching { repo.rcemPrices(months) }.getOrDefault(emptyMap())
             if (prefs.valuation == NetBillingValuation.RCE) {
                 rce = runCatching { repo.rcePrices(from, to).first }.getOrDefault(emptyMap())
             }
@@ -326,11 +330,43 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Downloads PSE prices again (failed RCE days are never cached) and recomputes the analysis.
+     * Downloads PSE prices now (RCEm page, plus hourly RCE of the analysed period when it is used)
+     * and recomputes the analysis.
      */
-    fun retryPrices() {
-        pricesRetry.update { it + 1 }
+    fun refreshPrices() {
+        if (pricesJob?.isActive == true) return
+        val all = records.value?.takeIf { it.isNotEmpty() } ?: return
+        val state = _uiState.value
+        pricesJob =
+            viewModelScope.launch {
+                _uiState.update { it.copy(pricesRefreshing = true) }
+                try {
+                    repo.rcemPrices(NetBilling.monthsOf(all), force = true)
+                    val a = state.analysis
+                    if (
+                        a != null &&
+                            state.prefs.mode == SettlementMode.NET_BILLING &&
+                            state.prefs.valuation == NetBillingValuation.RCE
+                    ) {
+                        val (_, failed) = repo.rcePrices(a.from, a.to, force = true)
+                        if (failed > 0) throw IOException("PSE: $failed days failed")
+                    }
+                } catch (e: IOException) {
+                    _events.emit(UiEvent.Error(ErrorKind.PRICES, e.message))
+                } finally {
+                    val fetchedAt = repo.pricesFetchedAt()
+                    _uiState.update {
+                        it.copy(pricesRefreshing = false, pricesFetchedAt = fetchedAt)
+                    }
+                    pricesRetry.update { it + 1 }
+                }
+            }
     }
+
+    private fun isToday(epochMillis: Long): Boolean =
+        epochMillis > 0 &&
+            Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate() ==
+                LocalDate.now()
 
     /** Values the selected period at hourly RCE prices. */
     fun loadRce() {

@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -40,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -88,6 +91,8 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                                 resources.getString(R.string.error_protocol, event.detail ?: "")
                             ErrorKind.NO_METER_DATA ->
                                 resources.getString(R.string.error_no_meter_data)
+                            ErrorKind.PRICES ->
+                                resources.getString(R.string.error_prices, event.detail ?: "")
                             ErrorKind.UNKNOWN ->
                                 resources.getString(R.string.error_generic, event.detail ?: "")
                         }
@@ -209,10 +214,17 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item { StatusCard(state, onLogin = { currentScreen = "login" }) }
+                item {
+                    StatusCard(
+                        state,
+                        onLogin = { currentScreen = "login" },
+                        onSync = { viewModel.sync() },
+                        onRefreshPrices = { viewModel.refreshPrices() },
+                    )
+                }
                 if (state.hasData) {
                     item { ParamsCard(state = state, onChange = { viewModel.updatePrefs(it) }) }
-                    item { SummaryCard(state, onRetryPrices = { viewModel.retryPrices() }) }
+                    item { SummaryCard(state, onRetryPrices = { viewModel.refreshPrices() }) }
                     item {
                         SectionCard {
                             listOf(
@@ -246,7 +258,12 @@ fun MainScreen(viewModel: EanalizerViewModel) {
 }
 
 @Composable
-private fun StatusCard(state: UiState, onLogin: () -> Unit) {
+private fun StatusCard(
+    state: UiState,
+    onLogin: () -> Unit,
+    onSync: () -> Unit,
+    onRefreshPrices: () -> Unit,
+) {
     if (state.loadingLocal) {
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         return
@@ -269,13 +286,31 @@ private fun StatusCard(state: UiState, onLogin: () -> Unit) {
             style = MaterialTheme.typography.titleSmall,
         )
         state.customerNumber?.let { MutedText(stringResource(R.string.customer_label, it)) }
-        MutedText(
-            stringResource(
-                R.string.last_sync,
-                if (state.lastSync > 0) dateTime(state.lastSync)
-                else stringResource(R.string.never),
-            )
+        RefreshRow(
+            text =
+                stringResource(
+                    R.string.last_sync,
+                    if (state.lastSync > 0) dateTime(state.lastSync)
+                    else stringResource(R.string.never),
+                ),
+            description = stringResource(R.string.refresh_enea),
+            enabled = !state.syncing,
+            onClick = onSync,
         )
+        RefreshRow(
+            text =
+                if (state.pricesRefreshing) stringResource(R.string.prices_refreshing)
+                else
+                    stringResource(
+                        R.string.prices_fetched,
+                        if (state.pricesFetchedAt > 0) dateTime(state.pricesFetchedAt)
+                        else stringResource(R.string.never),
+                    ),
+            description = stringResource(R.string.refresh_prices),
+            enabled = !state.pricesRefreshing,
+            onClick = onRefreshPrices,
+        )
+        if (state.pricesRefreshing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         if (state.syncing) SyncProgress(state)
         else if (!state.loggedIn) {
             Text(
@@ -284,6 +319,17 @@ private fun StatusCard(state: UiState, onLogin: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
             )
             Button(onClick = onLogin) { Text(stringResource(R.string.login_again)) }
+        }
+    }
+}
+
+/** Muted status line with a small refresh button on the right. */
+@Composable
+private fun RefreshRow(text: String, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        MutedText(text, modifier = Modifier.weight(1f))
+        IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.Refresh, description, modifier = Modifier.size(18.dp))
         }
     }
 }

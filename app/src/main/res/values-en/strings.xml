@@ -32,6 +32,11 @@
     <string name="data_range">Data: %1$s – %2$s</string>
     <string name="last_sync">Last sync: %1$s</string>
     <string name="never">never</string>
+    <string name="prices_fetched">PSE prices downloaded: %1$s</string>
+    <string name="prices_refreshing">Downloading PSE prices…</string>
+    <string name="refresh_enea">Refresh Enea data</string>
+    <string name="refresh_prices">Refresh PSE prices</string>
+    <string name="error_prices">Could not download PSE prices (%1$s)</string>
     <string name="customer_label">Customer: %1$s</string>
     <string name="analysis_period">Analysis period: %1$s – %2$s (%3$d h)</string>
     <string name="no_data_in_period">No data in the selected period</string>

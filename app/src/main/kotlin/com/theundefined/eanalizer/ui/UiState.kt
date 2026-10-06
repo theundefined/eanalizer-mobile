@@ -55,6 +55,7 @@ enum class ErrorKind {
     NETWORK,
     PROTOCOL,
     NO_METER_DATA,
+    PRICES,
     UNKNOWN,
 }
 
@@ -79,4 +80,7 @@ data class UiState(
     val analysis: Analysis? = null,
     val rce: RceState = RceState(),
     val dataYears: List<Int> = emptyList(),
+    /** Last successful PSE price download (epoch ms), 0 = never. */
+    val pricesFetchedAt: Long = 0L,
+    val pricesRefreshing: Boolean = false,
 )

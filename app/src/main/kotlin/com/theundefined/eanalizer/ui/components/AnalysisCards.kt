@@ -148,7 +148,7 @@ fun SummaryCard(state: UiState, onRetryPrices: () -> Unit) {
                 nb,
                 a.missingRcem.map { it.toString() },
                 a.pricesUnavailable,
-                retryEnabled = !state.analyzing,
+                retryEnabled = !state.analyzing && !state.pricesRefreshing,
                 onRetry = onRetryPrices,
             )
         else {

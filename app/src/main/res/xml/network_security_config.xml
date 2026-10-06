@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PSE (www.pse.pl, api.raporty.pse.pl) chains to Certum Trusted Root CA, which is in the
+     system trust store only since Android 14 - bundle it for older devices. -->
+<network-security-config>
+    <domain-config>
+        <domain includeSubdomains="true">pse.pl</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/certum_trusted_root_ca" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

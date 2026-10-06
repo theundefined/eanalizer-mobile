@@ -34,6 +34,11 @@
     <string name="data_range">Dane: %1$s – %2$s</string>
     <string name="last_sync">Ostatnia synchronizacja: %1$s</string>
     <string name="never">nigdy</string>
+    <string name="prices_fetched">Ceny PSE pobrane: %1$s</string>
+    <string name="prices_refreshing">Pobieranie cen PSE…</string>
+    <string name="refresh_enea">Odśwież dane z Enea</string>
+    <string name="refresh_prices">Odśwież ceny PSE</string>
+    <string name="error_prices">Nie udało się pobrać cen PSE (%1$s)</string>
     <string name="customer_label">Klient: %1$s</string>
     <string name="analysis_period">Okres analizy: %1$s – %2$s (%3$d h)</string>
     <string name="no_data_in_period">Brak danych w wybranym okresie</string>

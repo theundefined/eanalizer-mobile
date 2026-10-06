@@ -155,8 +155,12 @@ class EneaRepository(context: Context) {
     suspend fun rcePrices(
         from: LocalDate,
         to: LocalDate,
+        force: Boolean = false,
         onProgress: (Int, Int) -> Unit = { _, _ -> },
-    ): Pair<Map<LocalDateTime, Double>, Int> = rce.hourlyPrices(from, to, onProgress)
+    ): Pair<Map<LocalDateTime, Double>, Int> = rce.hourlyPrices(from, to, force, onProgress)
+
+    /** Time (epoch ms) of the last successful PSE download, 0 = never. */
+    suspend fun pricesFetchedAt(): Long = withContext(Dispatchers.IO) { rce.lastFetch }
 
     suspend fun rcemPrices(
         months: Collection<YearMonth>,
