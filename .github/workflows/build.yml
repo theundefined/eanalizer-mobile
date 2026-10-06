@@ -107,6 +107,35 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    # Sentry release with associated commits, so "Fixes EANALIZER-MOBILE-N" in a commit
+    # resolves the issue once it ships. The name must match the SDK's automatic release
+    # (applicationId@versionName+versionCode). Needs the Sentry GitHub integration with
+    # this repo added; skipped without the SENTRY_AUTH_TOKEN secret, never blocks a release.
+    - name: Read version for Sentry
+      id: sentry_version
+      if: steps.check_release.outputs.is_release == 'true'
+      env:
+        HAS_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+      run: |
+        echo "enabled=$HAS_TOKEN" >> $GITHUB_OUTPUT
+        NAME=$(sed -nE 's/^\s*versionName\s*=\s*"([^"]+)".*/\1/p' app/build.gradle.kts)
+        CODE=$(sed -nE 's/^\s*versionCode\s*=\s*([0-9]+).*/\1/p' app/build.gradle.kts)
+        echo "release=com.theundefined.eanalizer@${NAME}+${CODE}" >> $GITHUB_OUTPUT
+
+    - name: Create Sentry release
+      if: steps.sentry_version.outputs.enabled == 'true'
+      continue-on-error: true
+      uses: getsentry/action-release@6fb9aeade7061441cf3864e34fbe11a1457ad7dc # v3.7.1
+      env:
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        SENTRY_ORG: netrator
+        SENTRY_PROJECT: eanalizer-mobile
+      with:
+        release: ${{ steps.sentry_version.outputs.release }}
+        environment: production
+        set_commits: auto
+        finalize: true
+
   # Publishes to the Play internal track. GCP identifiers live in google-play
   # environment secrets (masked in public logs). Authenticates via Workload Identity
   # Federation (keyless): GCP only trusts OIDC tokens from this repo, branch main,
