@@ -43,16 +43,20 @@ MVVM + Kotlin Flow, single `MainActivity`, no navigation library — `MainScreen
 app/src/main/kotlin/com/theundefined/eanalizer/
   domain/            pure Kotlin (java.time), NO android imports — CSV parsing, holidays, tariffs,
                      Analyzer (storage/net-metering simulation, tariff comparison, optimal capacity),
-                     Periods, Aggregation, RceAnalysis, NetBilling + RcemParser, CsvExport + XlsxWriter
+                     Periods, Aggregation, RceAnalysis, NetBilling + RcemParser, CsvExport + XlsxWriter,
+                     Insights (day profile, heatmap, year-over-year, PV self-use estimate),
+                     Costs (StorageEconomics, Bills, DynamicTariff)
   data/local/        SettingsStore (prefs + EncryptedSharedPreferences), WebViewCookieJar, DataFiles
   data/remote/       EneaHtml (pure eBOK page parsing/URL rules, JVM-tested), EneaClient (customer
                      selection + CSV download on the WebView session), RceClient (PSE RCE per-day
                      cache, RCEm page cache 12 h)
+  data/sync/         BackgroundSync + SyncJobService (platform JobScheduler, no WorkManager)
   data/repository/   EneaRepository — orchestrates login, sync, persistence; exposes typed exceptions
   ui/                EanalizerViewModel, UiState
   ui/theme/          EanalizerTheme (Material3 light/dark, dynamic color on API 31+)
   ui/components/     Compose screens (MainScreen, AnalysisCards, ReportScreens: Compare/RCE/Monthly/
-                     Data, TariffsScreen, SettingsScreen, EneaLoginScreen, Charts)
+                     Data, InsightScreens: Bills/Storage/YoY/Profile/SelfUse + DynamicTariffCard,
+                     TariffsScreen, SettingsScreen, EneaLoginScreen, Charts)
 ```
 
 Key rules:
@@ -62,6 +66,9 @@ Key rules:
 - **Cache-then-refresh**: on start, show locally stored CSV data immediately, then sync in the background (pull-to-refresh = sync). Analysis is recomputed on `Dispatchers.Default` whenever records or prefs change — never re-download for a settings change. Preserve this pattern.
 - **Login happens in a WebView** (`EneaLoginScreen`): since 10.2026 Enea protects the form with reCAPTCHA Enterprise, so the app never posts credentials itself. Stored credentials (encrypted, not hashed) only prefill the React form; the user submits and enters the 2FA code. Navigation is limited to https `*.enea.pl`; landing on the logged-in `ebok.enea.pl` finishes the login. OkHttp shares the WebView `CookieManager` via `WebViewCookieJar` (also HttpOnly/SSO cookies), and uses the WebView User-Agent. `SessionExpiredException` → show the login WebView again.
 - **Port parity**: domain logic started as a port of eanalizer (tariff zones G12 13-15/22-6, G12w peak 6-21; PSE `dtime` is the END of the quarter; net-billing rules in `NetBilling`) and the base rules should keep matching it. Since v0.1.7 the app is developed independently: features beyond eanalizer are welcome (e.g. net-billing carries deposits from up to 12 months before the period via `history`; with empty history results equal eanalizer). Document deviations in KDoc.
+- **Main screen navigation**: reports are grouped (`NAV_GROUPS` in MainScreen: Costs / Consumption & production / Data) as `ListItem`s with icon + one-line description; configuration (tariffs, PV production, background sync) lives in Settings. Every report states which range it uses (selected period via `PeriodInfo`, or all data).
+- **Report inputs**: `ReportPrefs` (PV production, storage price, dynamic margin) are kept outside `AnalysisPrefs` so editing them never re-runs `analyze()`. Cheap per-period results are part of `Analysis`; heavy ones (storage scenarios, dynamic tariff) run on demand and remember the `Analysis` instance they belong to (`forAnalysis === analysis`).
+- **Background sync**: `EneaRepository.sync` is guarded by a process-wide `Mutex` (app + job). The job skips when data was synced today and notifies about an expired session only once (flag reset on login).
 - **Strings**: `res/values` = Polish (default), `res/values-en` = English. Keep both files in sync whenever UI copy is added or changed; no hard-coded UI text.
 - **Export**: share (`ACTION_SEND`) or save via SAF `CreateDocument`; XLSX written by the dependency-free `domain/XlsxWriter`. Sharing uses `FileProvider` (`${applicationId}.fileprovider`, `cacheDir/export/`) with `Intent.ACTION_SEND`.
 - Run `spotlessApply` before committing; CI fails on formatting.
