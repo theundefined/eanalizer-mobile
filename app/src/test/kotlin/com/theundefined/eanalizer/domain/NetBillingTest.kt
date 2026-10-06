@@ -231,6 +231,32 @@ class NetBillingTest {
     }
 
     @Test
+    fun parseRcemMonthNamesCaseInsensitiveAndWholeWord() {
+        val html =
+            """
+            <table><tr><td>2025</td></tr>
+            <tr><td>PAŹDZIERNIK</td><td>RCEm</td><td>300,00</td><td>11.11.2025</td></tr>
+            <tr><td>xmaj</td><td>RCEm</td><td>999,00</td><td>11.06.2025</td></tr>
+            <tr><td>Grudzień*</td><td>RCEm</td><td>400,00</td><td>11.01.2026</td></tr>
+            </table>
+            """
+        val prices = RcemParser.parse(html)
+        assertEquals(setOf(ym(2025, 10), ym(2025, 12)), prices.keys)
+        assertEquals(0.3, prices.getValue(ym(2025, 10)), eps)
+        assertEquals(0.4, prices.getValue(ym(2025, 12)), eps)
+    }
+
+    /** Android's ICU regex engine rejects `(?U)`; the JVM accepts it, so guard against it here. */
+    @Test
+    fun rcemParserUsesNoAndroidIncompatibleRegexFlags() {
+        val src =
+            java.io
+                .File("src/main/kotlin/com/theundefined/eanalizer/domain/NetBilling.kt")
+                .readText()
+        assertEquals(false, Regex("""\(\?[a-zA-Z]*U""").containsMatchIn(src))
+    }
+
+    @Test
     fun historyDepositCarriedIntoPeriod() {
         val history = sim(Triple(at(2024, 5, 10, 12), 0.0, 100.0))
         val s =

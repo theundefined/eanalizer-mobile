@@ -290,7 +290,13 @@ object RcemParser {
     private val TAG = Regex("<[^>]+>")
     private val WS = Regex("\\s+")
     private val YEAR = Regex("\\b(20\\d{2})\\b")
-    private val MONTH = Regex("(?iU)\\b(" + MONTHS.joinToString("|") + ")\\b\\**")
+    // Android's ICU regex rejects the UNICODE_CHARACTER_CLASS flag and without it the JVM's `\b`
+    // does not treat "ń" as a word character, so use explicit letter lookarounds instead.
+    private val MONTH =
+        Regex(
+            "(?<![\\p{L}\\d])(" + MONTHS.joinToString("|") + ")(?![\\p{L}\\d])\\**",
+            RegexOption.IGNORE_CASE,
+        )
     private val ENTRY = Regex("(\\d+(?:,\\d+)?)\\s+(\\d{2})\\.(\\d{2})\\.(\\d{4})")
 
     /**
