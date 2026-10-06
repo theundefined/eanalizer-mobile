@@ -94,3 +94,64 @@ class AggregationExportRceTest {
         assertEquals(1, r.missingHours)
     }
 }
+
+class XlsxExportTest {
+    private fun entries(bytes: ByteArray): Map<String, String> {
+        val out = LinkedHashMap<String, String>()
+        java.util.zip.ZipInputStream(bytes.inputStream()).use { zip ->
+            while (true) {
+                val e = zip.nextEntry ?: break
+                out[e.name] = zip.readBytes().toString(Charsets.UTF_8)
+            }
+        }
+        return out
+    }
+
+    @Test
+    fun workbookHasSheetsAndCells() {
+        val recs =
+            listOf(
+                TestData.rec(TestData.at(2024, 5, 1, 12), 1.5, 0.0),
+                TestData.rec(TestData.at(2024, 5, 2, 13), 0.0, 2.25),
+            )
+        val bytes =
+            java.io
+                .ByteArrayOutputStream()
+                .also { XlsxWriter.write(CsvExport.workbook(recs), it) }
+                .toByteArray()
+        val e = entries(bytes)
+        assertTrue("[Content_Types].xml" in e)
+        assertTrue(e.getValue("xl/workbook.xml").contains("name=\"Miesięczne\""))
+        val hourly = e.getValue("xl/worksheets/sheet1.xml")
+        assertTrue(hourly.contains("<is><t>czas</t></is>"))
+        // 2024-05-01 12:00 -> Excel serial 45413.5
+        assertTrue(hourly, hourly.contains("<c r=\"A2\" s=\"2\"><v>45413.5</v></c>"))
+        assertTrue(hourly.contains("<c r=\"B2\"><v>1.5</v></c>"))
+        assertTrue(e.getValue("xl/worksheets/sheet3.xml").contains("<t>2024-05</t>"))
+        assertEquals(3, e.keys.count { it.startsWith("xl/worksheets/") })
+    }
+
+    @Test
+    fun columnsAndEscaping() {
+        assertEquals("A", XlsxWriter.column(0))
+        assertEquals("Z", XlsxWriter.column(25))
+        assertEquals("AA", XlsxWriter.column(26))
+        val bytes =
+            java.io
+                .ByteArrayOutputStream()
+                .also {
+                    XlsxWriter.write(listOf(XlsxSheet("a/b", sequenceOf(listOf("x<&>\"y")))), it)
+                }
+                .toByteArray()
+        val e = entries(bytes)
+        assertTrue(e.getValue("xl/worksheets/sheet1.xml").contains("x&lt;&amp;&gt;&quot;y"))
+        assertTrue(e.getValue("xl/workbook.xml").contains("name=\"a b\""))
+    }
+
+    @Test
+    fun hourlyCsv() {
+        val csv = CsvExport.hourly(listOf(TestData.rec(TestData.at(2024, 5, 1, 12), 1.5, 0.25)))
+        assertEquals("timestamp;pobor_przed;oddanie_przed;pobor;oddanie", csv.lines()[0])
+        assertTrue(csv.lines()[1], csv.lines()[1].startsWith("2024-05-01 12:00:00;1,500;0,250;"))
+    }
+}

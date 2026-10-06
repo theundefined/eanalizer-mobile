@@ -229,4 +229,59 @@ class NetBillingTest {
         assertEquals(0.17884, prices.getValue(ym(2025, 3)), eps)
         assertEquals(0.47023, prices.getValue(ym(2024, 12)), eps)
     }
+
+    @Test
+    fun historyDepositCarriedIntoPeriod() {
+        val history = sim(Triple(at(2024, 5, 10, 12), 0.0, 100.0))
+        val s =
+            NetBilling.settle(
+                sim(Triple(at(2024, 6, 10, 20), 20.0, 0.0)),
+                table,
+                "G11",
+                emptyMap(),
+                mapOf(ym(2024, 5) to 0.3, ym(2024, 6) to 0.3),
+                history = history,
+            )!!
+        assertEquals(30.0, s.depozytPoczatkowy, eps)
+        assertEquals(listOf(ym(2024, 6)), s.months.map { it.month })
+        assertEquals(10.0, s.kosztEnergii, eps)
+        assertEquals(10.0, s.pokryteDepozytem, eps)
+        assertEquals(0.0, s.wartoscDepozytu, eps)
+        assertEquals(0.0, s.energiaDoZaplaty, eps)
+        assertEquals(20.0, s.depozytPozostaly, eps)
+        assertEquals(6.0, s.kosztDystrybucji, eps)
+    }
+
+    @Test
+    fun historyOverlappingPeriodMonthIsIgnored() {
+        // Rows of the period's first month (or later) in history must not count twice.
+        val s =
+            NetBilling.settle(
+                sim(Triple(at(2024, 6, 10, 20), 20.0, 0.0)),
+                table,
+                "G11",
+                emptyMap(),
+                mapOf(ym(2024, 6) to 0.3),
+                history = sim(Triple(at(2024, 6, 1, 12), 0.0, 100.0)),
+            )!!
+        assertEquals(0.0, s.depozytPoczatkowy, eps)
+        assertEquals(0.0, s.pokryteDepozytem, eps)
+    }
+
+    @Test
+    fun expiredHistoryDepositIsNotCountedAsLostInPeriod() {
+        // Deposit from 2023-05 expires in 2024-05, before the period (2024-06).
+        val s =
+            NetBilling.settle(
+                sim(Triple(at(2024, 6, 10, 20), 20.0, 0.0)),
+                table,
+                "G11",
+                emptyMap(),
+                mapOf(ym(2023, 5) to 0.3),
+                history = sim(Triple(at(2023, 5, 10, 12), 0.0, 100.0)),
+            )!!
+        assertEquals(0.0, s.depozytPoczatkowy, eps)
+        assertEquals(0.0, s.przepadlyDepozyt, eps)
+        assertEquals(0.0, s.zwrotNadplaty, eps)
+    }
 }

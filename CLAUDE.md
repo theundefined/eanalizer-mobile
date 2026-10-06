@@ -43,7 +43,7 @@ MVVM + Kotlin Flow, single `MainActivity`, no navigation library — `MainScreen
 app/src/main/kotlin/com/theundefined/eanalizer/
   domain/            pure Kotlin (java.time), NO android imports — CSV parsing, holidays, tariffs,
                      Analyzer (storage/net-metering simulation, tariff comparison, optimal capacity),
-                     Periods, Aggregation, RceAnalysis, NetBilling + RcemParser, CsvExport
+                     Periods, Aggregation, RceAnalysis, NetBilling + RcemParser, CsvExport + XlsxWriter
   data/local/        SettingsStore (prefs + EncryptedSharedPreferences), WebViewCookieJar, DataFiles
   data/remote/       EneaHtml (pure eBOK page parsing/URL rules, JVM-tested), EneaClient (customer
                      selection + CSV download on the WebView session), RceClient (PSE RCE per-day
@@ -58,10 +58,10 @@ app/src/main/kotlin/com/theundefined/eanalizer/
 Key rules:
 
 - **Layering**: `domain` must stay free of Android APIs so it can be unit-tested on the JVM. `data` depends on `domain`; `ui` depends on both. Repository throws typed exceptions (`SessionExpiredException`, `CustomerSelectionRequiredException`, `EneaProtocolException`, `IOException`); user-facing messages come from string resources in the UI.
-- **Tests required for domain logic**: any change to `domain/` needs JUnit4 tests in `app/src/test/kotlin/com/theundefined/eanalizer/...`. Results should match the Python eanalizer for the same input.
+- **Tests required for domain logic**: any change to `domain/` needs JUnit4 tests in `app/src/test/kotlin/com/theundefined/eanalizer/...`. Where a feature exists in eanalizer, results should match it for the same input.
 - **Cache-then-refresh**: on start, show locally stored CSV data immediately, then sync in the background (pull-to-refresh = sync). Analysis is recomputed on `Dispatchers.Default` whenever records or prefs change — never re-download for a settings change. Preserve this pattern.
 - **Login happens in a WebView** (`EneaLoginScreen`): since 10.2026 Enea protects the form with reCAPTCHA Enterprise, so the app never posts credentials itself. Stored credentials (encrypted, not hashed) only prefill the React form; the user submits and enters the 2FA code. Navigation is limited to https `*.enea.pl`; landing on the logged-in `ebok.enea.pl` finishes the login. OkHttp shares the WebView `CookieManager` via `WebViewCookieJar` (also HttpOnly/SSO cookies), and uses the WebView User-Agent. `SessionExpiredException` → show the login WebView again.
-- **Port parity**: domain logic mirrors eanalizer (tariff zones G12 13-15/22-6, G12w peak 6-21; PSE `dtime` is the END of the quarter; net-billing rules in `NetBilling`). When eanalizer changes these, port the change with tests.
+- **Port parity**: domain logic started as a port of eanalizer (tariff zones G12 13-15/22-6, G12w peak 6-21; PSE `dtime` is the END of the quarter; net-billing rules in `NetBilling`) and the base rules should keep matching it. Since v0.1.7 the app is developed independently: features beyond eanalizer are welcome (e.g. net-billing carries deposits from up to 12 months before the period via `history`; with empty history results equal eanalizer). Document deviations in KDoc.
 - **Strings**: `res/values` = Polish (default), `res/values-en` = English. Keep both files in sync whenever UI copy is added or changed; no hard-coded UI text.
-- **Export** uses `FileProvider` (`${applicationId}.fileprovider`, `cacheDir/export/`) with `Intent.ACTION_SEND`.
+- **Export**: share (`ACTION_SEND`) or save via SAF `CreateDocument`; XLSX written by the dependency-free `domain/XlsxWriter`. Sharing uses `FileProvider` (`${applicationId}.fileprovider`, `cacheDir/export/`) with `Intent.ACTION_SEND`.
 - Run `spotlessApply` before committing; CI fails on formatting.

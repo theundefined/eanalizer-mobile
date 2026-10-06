@@ -33,6 +33,8 @@ data class NetBillingResult(
     val energiaDoZaplaty: Double,
     val kosztDystrybucji: Double,
     val oplatyStale: Double,
+    /** Deposit carried over from [NetBilling.settle]'s `history` into the first month. */
+    val depozytPoczatkowy: Double,
     val wartoscDepozytu: Double,
     val pokryteDepozytem: Double,
     val zwrotNadplaty: Double,
@@ -53,6 +55,9 @@ data class NetBillingResult(
  *   distribution), oldest funds first,
  * - unused deposit is refunded up to 20% of its value (30% for hourly RCE from 02.2025); refunds
  *   apply to deposits expiring from 07.2024.
+ *
+ * Unlike eanalizer, settlement may start with deposits created before the analysed period (see
+ * `history` in [NetBilling.settle]).
  */
 object NetBilling {
     val HOURLY_RCE_START: YearMonth = YearMonth.of(2024, 7)
@@ -81,6 +86,11 @@ object NetBilling {
     /**
      * Settles [simulation] rows (grid import/export after any physical storage). [rcePrices] are
      * hourly zł/kWh, [rcemPrices] monthly zł/kWh. Returns null when there is nothing to settle.
+     *
+     * [history] are simulation rows before the analysed period (whole months before the month of
+     * the first [simulation] row, typically 12): they are settled the same way so deposits created
+     * then (and not used/expired yet) are available in the period, but they are not part of the
+     * returned totals or months.
      */
     fun settle(
         simulation: List<SimulationRow>,
@@ -90,14 +100,17 @@ object NetBilling {
         rcemPrices: Map<YearMonth, Double>,
         valuation: NetBillingValuation = NetBillingValuation.RCEM,
         fixedFee: Double = 0.0,
+        history: List<SimulationRow> = emptyList(),
     ): NetBillingResult? {
         if (simulation.isEmpty()) return null
+        val reportStart = YearMonth.from(simulation.first().timestamp)
+        val past = history.filter { YearMonth.from(it.timestamp) < reportStart }
         val monthly = HashMap<YearMonth, MonthAcc>()
         val hourlyValue = HashMap<YearMonth, Double>()
         var missingRce = 0
         val hourlyStart = HOURLY_RCE_START.atDay(1).atStartOfDay()
 
-        for (row in simulation) {
+        for (row in past + simulation) {
             val month = YearMonth.from(row.timestamp)
             val m = monthly.getOrPut(month) { MonthAcc() }
             val zp = table.resolve(row.timestamp, tariff)
@@ -130,9 +143,11 @@ object NetBilling {
         var pokryte = 0.0
         var zwrot = 0.0
         var przepadly = 0.0
+        var opening = 0.0
 
         var month = first
         while (month <= last) {
+            if (month == reportStart) opening = deposits.sumOf { it.left }
             val m = monthly[month] ?: MonthAcc()
 
             // 1. Active-energy cost covered from deposits, oldest first.
@@ -155,7 +170,7 @@ object NetBilling {
                     val limit = if (month >= REFUND_START) dep.refundLimit else 0.0
                     val depRefund = minOf(dep.left, dep.value * limit)
                     refund += depRefund
-                    przepadly += dep.left - depRefund
+                    if (month >= reportStart) przepadly += dep.left - depRefund
                     dep.left = 0.0
                 }
             }
@@ -190,6 +205,10 @@ object NetBilling {
                     )
             }
 
+            if (month < reportStart) {
+                month = month.plusMonths(1)
+                continue
+            }
             wartosc += depositValue
             pokryte += covered
             zwrot += refund
@@ -217,6 +236,7 @@ object NetBilling {
             energiaDoZaplaty = doZaplaty,
             kosztDystrybucji = kosztDystrybucji,
             oplatyStale = fixedFee,
+            depozytPoczatkowy = opening,
             wartoscDepozytu = wartosc,
             pokryteDepozytem = pokryte,
             zwrotNadplaty = zwrot,

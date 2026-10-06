@@ -84,6 +84,7 @@
     <string name="optimal_capacity">Suggested storage capacity</string>
     <string name="surplus_days">Days with production surplus</string>
     <string name="missing_hours">Missing hours in data</string>
+    <string name="nb_deposit_opening">Deposit at period start</string>
     <string name="nb_energy_cost">Active energy (before deposit)</string>
     <string name="nb_deposit_value">Deposit value created</string>
     <string name="nb_covered">Covered by deposit</string>
@@ -103,10 +104,15 @@
     <string name="screen_monthly">Monthly summary</string>
     <string name="screen_data">Daily data</string>
     <string name="screen_tariffs">Tariffs</string>
-    <string name="export">CSV export</string>
-    <string name="export_simulation">Hourly simulation</string>
-    <string name="export_daily">Daily aggregates</string>
-    <string name="export_monthly">Monthly aggregates</string>
+    <string name="export">Data export</string>
+    <string name="export_workbook">All data — spreadsheet (XLSX)</string>
+    <string name="export_hourly">All hourly data (CSV)</string>
+    <string name="export_simulation">Period: hourly simulation (CSV)</string>
+    <string name="export_daily">Period: daily aggregates (CSV)</string>
+    <string name="export_monthly">Period: monthly aggregates (CSV)</string>
+    <string name="export_share">Share</string>
+    <string name="export_save">Save to file</string>
+    <string name="export_saved">File saved</string>
     <string name="share_title">Share CSV file</string>
 
     <!-- Compare -->

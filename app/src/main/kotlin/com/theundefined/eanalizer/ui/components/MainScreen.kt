@@ -1,7 +1,10 @@
 package com.theundefined.eanalizer.ui.components
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts.CreateDocument
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -56,6 +60,7 @@ import com.theundefined.eanalizer.ui.EanalizerViewModel.ExportKind
 import com.theundefined.eanalizer.ui.EanalizerViewModel.UiEvent
 import com.theundefined.eanalizer.ui.ErrorKind
 import com.theundefined.eanalizer.ui.UiState
+import com.theundefined.eanalizer.ui.XLSX_MIME
 import com.theundefined.eanalizer.ui.dateTime
 import kotlinx.coroutines.flow.collectLatest
 
@@ -81,6 +86,8 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                             )
                         else resources.getString(R.string.sync_up_to_date)
                     )
+                is UiEvent.Saved ->
+                    snackbarHostState.showSnackbar(resources.getString(R.string.export_saved))
                 is UiEvent.LoginRequired -> currentScreen = "login"
                 is UiEvent.Error ->
                     snackbarHostState.showSnackbar(
@@ -106,7 +113,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                         )
                     val send =
                         Intent(Intent.ACTION_SEND).apply {
-                            type = "text/csv"
+                            type = event.mimeType
                             putExtra(Intent.EXTRA_STREAM, uri)
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
@@ -192,7 +199,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    if (state.analysis != null) ExportMenu { viewModel.export(it) }
+                    if (state.hasData) ExportMenu(state, viewModel)
                     IconButton(onClick = { viewModel.sync() }, enabled = !state.syncing) {
                         Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
                     }
@@ -345,28 +352,76 @@ private fun SyncProgress(state: UiState) {
     }
 }
 
+/** Export menu; each export can be shared (e.g. to Drive/Sheets) or saved to a file. */
 @Composable
-private fun ExportMenu(onExport: (ExportKind) -> Unit) {
+private fun ExportMenu(state: UiState, viewModel: EanalizerViewModel) {
     var open by remember { mutableStateOf(false) }
+    var chosen by remember { mutableStateOf<ExportKind?>(null) }
+    var saving by remember { mutableStateOf<ExportKind?>(null) }
+    fun onSaveResult(uri: Uri?) {
+        val kind = saving
+        saving = null
+        if (uri != null && kind != null) viewModel.export(kind, uri)
+    }
+    val saveCsv = rememberLauncherForActivityResult(CreateDocument("text/csv")) { onSaveResult(it) }
+    val saveXlsx = rememberLauncherForActivityResult(CreateDocument(XLSX_MIME)) { onSaveResult(it) }
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Default.Share, stringResource(R.string.export))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            listOf(
-                    ExportKind.SIMULATION to R.string.export_simulation,
-                    ExportKind.DAILY to R.string.export_daily,
-                    ExportKind.MONTHLY to R.string.export_monthly,
+            val items =
+                listOf(
+                    ExportKind.WORKBOOK to R.string.export_workbook,
+                    ExportKind.HOURLY to R.string.export_hourly,
+                ) +
+                    if (state.analysis == null) emptyList()
+                    else
+                        listOf(
+                            ExportKind.SIMULATION to R.string.export_simulation,
+                            ExportKind.DAILY to R.string.export_daily,
+                            ExportKind.MONTHLY to R.string.export_monthly,
+                        )
+            items.forEachIndexed { i, (kind, label) ->
+                if (i == 2) HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(stringResource(label)) },
+                    onClick = {
+                        open = false
+                        chosen = kind
+                    },
                 )
-                .forEach { (kind, label) ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(label)) },
-                        onClick = {
-                            open = false
-                            onExport(kind)
-                        },
-                    )
-                }
+            }
         }
+    }
+    chosen?.let { kind ->
+        AlertDialog(
+            onDismissRequest = { chosen = null },
+            title = { Text(stringResource(R.string.export)) },
+            text = { Text(viewModel.exportName(kind) ?: "") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        chosen = null
+                        viewModel.export(kind)
+                    }
+                ) {
+                    Text(stringResource(R.string.export_share))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        chosen = null
+                        val name = viewModel.exportName(kind) ?: return@TextButton
+                        saving = kind
+                        if (kind == ExportKind.WORKBOOK) saveXlsx.launch(name)
+                        else saveCsv.launch(name)
+                    }
+                ) {
+                    Text(stringResource(R.string.export_save))
+                }
+            },
+        )
     }
 }

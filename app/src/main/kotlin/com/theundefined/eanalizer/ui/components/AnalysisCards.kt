@@ -241,6 +241,8 @@ fun NetBillingRows(
     retryEnabled: Boolean,
     onRetry: () -> Unit,
 ) {
+    if (nb.depozytPoczatkowy > 0)
+        ValueRow(stringResource(R.string.nb_deposit_opening), zl(nb.depozytPoczatkowy))
     ValueRow(stringResource(R.string.nb_energy_cost), zl(nb.kosztEnergii))
     ValueRow(stringResource(R.string.nb_deposit_value), zl(nb.wartoscDepozytu))
     ValueRow(stringResource(R.string.nb_covered), zl(nb.pokryteDepozytem))

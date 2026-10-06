@@ -1,6 +1,7 @@
 package com.theundefined.eanalizer.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theundefined.eanalizer.data.local.AnalysisPrefs
@@ -20,6 +21,7 @@ import com.theundefined.eanalizer.domain.NetBillingValuation
 import com.theundefined.eanalizer.domain.Periods
 import com.theundefined.eanalizer.domain.RceAnalysis
 import com.theundefined.eanalizer.domain.TariffTable
+import com.theundefined.eanalizer.domain.XlsxWriter
 import java.io.File
 import java.io.IOException
 import java.time.Instant
@@ -49,6 +51,8 @@ private data class AnalysisInput(
     val pricesRetry: Int,
 )
 
+const val XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
 class EanalizerViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = EneaRepository(application)
     private val settings = repo.settings
@@ -61,7 +65,9 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         /** The session is gone - show the login WebView. */
         data object LoginRequired : UiEvent
 
-        data class Share(val file: File) : UiEvent
+        data class Share(val file: File, val mimeType: String) : UiEvent
+
+        data object Saved : UiEvent
     }
 
     private val _uiState =
@@ -158,22 +164,44 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 ?: return null
         val ratio = prefs.netMeteringRatio.takeIf { prefs.mode == SettlementMode.NET_METERING }
 
+        val netBilling = prefs.mode == SettlementMode.NET_BILLING
+        // Net-billing: up to 12 whole months before the period, so deposits created then (still
+        // valid in the period) are carried over.
+        val historyFrom = from.withDayOfMonth(1).minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
+        val history =
+            if (netBilling) Periods.filter(all, historyFrom, from.withDayOfMonth(1).minusDays(1))
+            else emptyList()
+
         // Net-billing prices (network, cached) before the CPU-heavy part.
         var rce = emptyMap<LocalDateTime, Double>()
         var rcem = emptyMap<YearMonth, Double>()
         var pricesUnavailable = false
-        if (prefs.mode == SettlementMode.NET_BILLING) {
-            val months = NetBilling.monthsOf(recs)
+        if (netBilling) {
+            val months = NetBilling.monthsOf(history + recs)
             rcem = runCatching { repo.rcemPrices(months) }.getOrDefault(emptyMap())
             if (prefs.valuation == NetBillingValuation.RCE) {
-                rce = runCatching { repo.rcePrices(from, to).first }.getOrDefault(emptyMap())
+                val rceFrom = history.firstOrNull()?.timestamp?.toLocalDate() ?: from
+                rce = runCatching { repo.rcePrices(rceFrom, to).first }.getOrDefault(emptyMap())
             }
             pricesUnavailable = rcem.isEmpty() && rce.isEmpty()
         }
 
         return withContext(Dispatchers.Default) {
+            // History simulation per tariff (storage state and zones depend on the tariff).
+            val historySim =
+                if (history.isEmpty()) emptyMap()
+                else
+                    Analyzer.compareTariffs(
+                            history,
+                            prefs.capacity,
+                            tariffs,
+                            null,
+                            prefs.efficiency
+                        )
+                        .associate { it.tariff to it.simulation }
+
             fun settle(r: AnalysisResult) =
-                if (prefs.mode == SettlementMode.NET_BILLING)
+                if (netBilling)
                     NetBilling.settle(
                         r.simulation,
                         tariffs,
@@ -182,6 +210,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                         rcem,
                         prefs.valuation,
                         r.fixedFees,
+                        historySim[r.tariff] ?: emptyList(),
                     )
                 else null
 
@@ -396,32 +425,69 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             }
     }
 
-    enum class ExportKind {
-        SIMULATION,
-        DAILY,
-        MONTHLY,
+    enum class ExportKind(val mimeType: String) {
+        /** Everything in one spreadsheet (all data + analysed period). */
+        WORKBOOK(XLSX_MIME),
+        /** All downloaded hourly data. */
+        HOURLY("text/csv"),
+        SIMULATION("text/csv"),
+        DAILY("text/csv"),
+        MONTHLY("text/csv"),
     }
 
-    fun export(kind: ExportKind) {
-        val a = _uiState.value.analysis ?: return
+    /** Suggested file name for [kind], null when there is nothing to export. */
+    fun exportName(kind: ExportKind): String? {
+        val all = records.value?.takeIf { it.isNotEmpty() } ?: return null
+        val a = _uiState.value.analysis
+        val dataFrom = all.first().timestamp.toLocalDate()
+        val dataTo = all.last().timestamp.toLocalDate()
+        return when (kind) {
+            ExportKind.WORKBOOK -> "eanalizer_${dataFrom}_$dataTo.xlsx"
+            ExportKind.HOURLY -> "dane_godzinowe_${dataFrom}_$dataTo.csv"
+            ExportKind.SIMULATION ->
+                a?.let { "symulacja_${it.result.tariff}_${it.from}_${it.to}.csv" }
+            ExportKind.DAILY -> a?.let { "dane_dzienne_${it.from}_${it.to}.csv" }
+            ExportKind.MONTHLY -> a?.let { "dane_miesieczne_${it.from}_${it.to}.csv" }
+        }
+    }
+
+    /** Writes the export to [target] (a document picked by the user) or shares it when null. */
+    fun export(kind: ExportKind, target: Uri? = null) {
+        val name = exportName(kind) ?: return
+        val all = records.value ?: return
+        val a = _uiState.value.analysis
         viewModelScope.launch {
-            val file =
-                withContext(Dispatchers.IO) {
-                    val (name, content) =
-                        when (kind) {
-                            ExportKind.SIMULATION ->
-                                "symulacja_${a.result.tariff}_${a.from}_${a.to}.csv" to
-                                    CsvExport.simulation(a.result.simulation)
-                            ExportKind.DAILY ->
-                                "dane_dzienne_${a.from}_${a.to}.csv" to
-                                    CsvExport.aggregates(a.daily)
-                            ExportKind.MONTHLY ->
-                                "dane_miesieczne_${a.from}_${a.to}.csv" to
-                                    CsvExport.aggregates(a.monthly)
+            try {
+                val file =
+                    withContext(Dispatchers.IO) {
+                        repo.exportFile(name) { out ->
+                            fun text(s: String) = out.write(s.toByteArray(Charsets.UTF_8))
+                            when (kind) {
+                                ExportKind.WORKBOOK ->
+                                    XlsxWriter.write(
+                                        CsvExport.workbook(
+                                            all,
+                                            a?.result?.simulation,
+                                            a?.netBilling,
+                                        ),
+                                        out,
+                                    )
+                                ExportKind.HOURLY -> text(CsvExport.hourly(all))
+                                ExportKind.SIMULATION ->
+                                    text(CsvExport.simulation(a!!.result.simulation))
+                                ExportKind.DAILY -> text(CsvExport.aggregates(a!!.daily))
+                                ExportKind.MONTHLY -> text(CsvExport.aggregates(a!!.monthly))
+                            }
                         }
-                    repo.exportFile(name, content)
+                    }
+                if (target == null) _events.emit(UiEvent.Share(file, kind.mimeType))
+                else {
+                    withContext(Dispatchers.IO) { repo.copyTo(file, target) }
+                    _events.emit(UiEvent.Saved)
                 }
-            _events.emit(UiEvent.Share(file))
+            } catch (e: IOException) {
+                _events.emit(UiEvent.Error(ErrorKind.UNKNOWN, e.message))
+            }
         }
     }
 }

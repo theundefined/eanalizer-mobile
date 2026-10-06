@@ -1,6 +1,7 @@
 package com.theundefined.eanalizer.data.repository
 
 import android.content.Context
+import android.net.Uri
 import android.webkit.WebSettings
 import com.theundefined.eanalizer.data.local.DataFiles
 import com.theundefined.eanalizer.data.local.SettingsStore
@@ -13,6 +14,8 @@ import com.theundefined.eanalizer.data.remote.RceClient
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
 import com.theundefined.eanalizer.domain.HourlyRecord
 import java.io.File
+import java.io.IOException
+import java.io.OutputStream
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -167,9 +170,17 @@ class EneaRepository(context: Context) {
         force: Boolean = false,
     ): Map<YearMonth, Double> = rce.monthlyPrices(months, force)
 
-    /** Writes [content] to `cacheDir/export/<name>` for sharing via FileProvider. */
-    fun exportFile(name: String, content: String): File {
+    /** Writes `cacheDir/export/<name>` with [write] for sharing via FileProvider. */
+    fun exportFile(name: String, write: (OutputStream) -> Unit): File {
         val dir = File(appContext.cacheDir, "export").apply { mkdirs() }
-        return File(dir, name).apply { writeText(content) }
+        return File(dir, name).apply { outputStream().buffered().use(write) }
+    }
+
+    /** Copies [file] to a document picked by the user (Storage Access Framework). */
+    fun copyTo(file: File, target: Uri) {
+        val out =
+            appContext.contentResolver.openOutputStream(target, "wt")
+                ?: throw IOException("cannot open $target")
+        out.use { o -> file.inputStream().use { it.copyTo(o) } }
     }
 }
