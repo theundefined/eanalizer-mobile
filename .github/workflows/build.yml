@@ -125,16 +125,21 @@ jobs:
     - name: Create Sentry release
       if: steps.sentry_version.outputs.enabled == 'true'
       continue-on-error: true
-      uses: getsentry/action-release@6fb9aeade7061441cf3864e34fbe11a1457ad7dc # v3.7.1
       env:
         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         SENTRY_ORG: netrator
         SENTRY_PROJECT: eanalizer-mobile
-      with:
-        release: ${{ steps.sentry_version.outputs.release }}
-        environment: production
-        set_commits: auto
-        finalize: true
+        RELEASE: ${{ steps.sentry_version.outputs.release }}
+      run: |
+        # Explicit commit range (previous tag..HEAD): `--auto` silently associated nothing.
+        PREV=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
+        PREV_SHA=$(git rev-list -n 1 "$PREV")
+        echo "Commits $PREV ($PREV_SHA)..$GITHUB_SHA"
+        CLI="npx -y @sentry/cli@3.8.0"
+        $CLI releases new "$RELEASE"
+        $CLI releases set-commits "$RELEASE" --commit "$GITHUB_REPOSITORY@$PREV_SHA..$GITHUB_SHA"
+        $CLI releases finalize "$RELEASE"
+        $CLI deploys new --release "$RELEASE" -e production
 
   # Publishes to the Play internal track. GCP identifiers live in google-play
   # environment secrets (masked in public logs). Authenticates via Workload Identity
