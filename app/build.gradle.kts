@@ -31,6 +31,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
         resourceConfigurations.addAll(listOf("pl", "en"))
+
+        // Sentry DSN from the SENTRY_DSN property/env var; empty = Sentry disabled.
+        val sentryDsn: String =
+            project.findProperty("SENTRY_DSN")?.toString() ?: System.getenv("SENTRY_DSN") ?: ""
+        manifestPlaceholders["sentryDsn"] = sentryDsn
+        manifestPlaceholders["sentryEnvironment"] = "debug"
     }
 
     signingConfigs {
@@ -44,6 +50,7 @@ android {
 
     buildTypes {
         release {
+            manifestPlaceholders["sentryEnvironment"] = "production"
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -96,6 +103,9 @@ dependencies {
     // Network
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Crash reporting
+    implementation("io.sentry:sentry-android-core:7.16.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

@@ -32,7 +32,8 @@ source ~/android-env/env.sh && ./gradlew assembleRelease bundleRelease # needs R
 
 - Single module `app`, Kotlin DSL, no version catalog, versions inline. AGP 8.10.1, Kotlin 2.0.0, Gradle 8.12, JVM target 17, compileSdk/targetSdk 36, minSdk 26.
 - `isMinifyEnabled = false` and `-dontobfuscate` are intentional.
-- Dependencies are deliberately minimal: **kotlinx.serialization only (no Gson, no Retrofit)**, plain OkHttp, coroutines. No DI framework, no navigation library, no chart library (charts drawn with Compose `Canvas`), no Sentry.
+- Dependencies are deliberately minimal: **kotlinx.serialization only (no Gson, no Retrofit)**, plain OkHttp, coroutines. No DI framework, no navigation library, no chart library (charts drawn with Compose `Canvas`).
+- Crash reporting: `io.sentry:sentry-android-core` only (no Sentry Gradle plugin — nothing to upload with minify off), auto-initialised from the manifest. The DSN is injected via `manifestPlaceholders["sentryDsn"]` from the `SENTRY_DSN` Gradle property/env var (GitHub secret `SENTRY_DSN`, Sentry project `eanalizer-mobile`, region `de.sentry.io`); empty DSN = Sentry disabled. `send-default-pii` is off.
 
 ## Architecture
 

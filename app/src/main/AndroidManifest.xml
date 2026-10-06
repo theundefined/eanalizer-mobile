@@ -12,6 +12,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Eanalizer">
 
+        <meta-data android:name="io.sentry.dsn" android:value="${sentryDsn}" />
+        <meta-data android:name="io.sentry.environment" android:value="${sentryEnvironment}" />
+        <meta-data android:name="io.sentry.send-default-pii" android:value="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
