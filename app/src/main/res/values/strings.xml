@@ -87,6 +87,7 @@
     <string name="nb_expired">Przepadły depozyt</string>
     <string name="nb_deposit_left">Depozyt na koniec okresu</string>
     <string name="nb_missing_rcem">Brak cen RCEm dla: %1$s — oddana energia nie została wyceniona.</string>
+    <string name="nb_retry_prices">Ponów pobieranie cen PSE</string>
     <string name="nb_missing_rce">Brak cen RCE dla %1$d godzin z oddaniem energii.</string>
     <string name="nb_prices_unavailable">Nie udało się pobrać cen PSE — depozyt nie został wyceniony.</string>
 

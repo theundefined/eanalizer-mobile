@@ -212,7 +212,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                 item { StatusCard(state, onLogin = { currentScreen = "login" }) }
                 if (state.hasData) {
                     item { ParamsCard(state = state, onChange = { viewModel.updatePrefs(it) }) }
-                    item { SummaryCard(state) }
+                    item { SummaryCard(state, onRetryPrices = { viewModel.retryPrices() }) }
                     item {
                         SectionCard {
                             listOf(

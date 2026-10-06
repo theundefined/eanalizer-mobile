@@ -39,6 +39,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private data class AnalysisInput(
+    val records: List<HourlyRecord>?,
+    val prefs: AnalysisPrefs,
+    val tariffs: TariffTable,
+    val pricesRetry: Int,
+)
+
 class EanalizerViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = EneaRepository(application)
     private val settings = repo.settings
@@ -74,6 +81,10 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     private var syncJob: Job? = null
     private var rceJob: Job? = null
 
+    /** Bumped by [retryPrices] to recompute the analysis with freshly downloaded PSE prices. */
+    private val pricesRetry = MutableStateFlow(0)
+    private var pricesRetryDone = 0
+
     init {
         viewModelScope.launch(Dispatchers.IO) {
             val email = settings.email
@@ -87,16 +98,20 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         }
         viewModelScope.launch {
             // Only records/prefs/tariffs matter; other state changes must not restart analysis.
-            combine(records, _uiState) { recs, s -> Triple(recs, s.prefs, s.tariffs) }
+            combine(records, _uiState, pricesRetry) { recs, s, retry ->
+                    AnalysisInput(recs, s.prefs, s.tariffs, retry)
+                }
                 .distinctUntilChanged()
-                .collectLatest { (recs, prefs, tariffs) ->
+                .collectLatest { (recs, prefs, tariffs, retry) ->
                     if (recs == null) return@collectLatest
                     if (recs.isEmpty()) {
                         _uiState.update { it.copy(analysis = null, analyzing = false) }
                         return@collectLatest
                     }
                     _uiState.update { it.copy(analyzing = true) }
-                    val analysis = analyze(recs, prefs, tariffs)
+                    val force = retry > pricesRetryDone
+                    val analysis = analyze(recs, prefs, tariffs, forcePrices = force)
+                    pricesRetryDone = retry
                     _uiState.update { it.copy(analysis = analysis, analyzing = false) }
                 }
         }
@@ -121,6 +136,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         all: List<HourlyRecord>,
         prefs: AnalysisPrefs,
         tariffs: TariffTable,
+        forcePrices: Boolean = false,
     ): Analysis? {
         val (from, to) =
             Periods.resolve(
@@ -142,7 +158,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         var pricesUnavailable = false
         if (prefs.mode == SettlementMode.NET_BILLING) {
             val months = NetBilling.monthsOf(recs)
-            rcem = runCatching { repo.rcemPrices(months) }.getOrDefault(emptyMap())
+            rcem = runCatching { repo.rcemPrices(months, forcePrices) }.getOrDefault(emptyMap())
             if (prefs.valuation == NetBillingValuation.RCE) {
                 rce = runCatching { repo.rcePrices(from, to).first }.getOrDefault(emptyMap())
             }
@@ -307,6 +323,13 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
         viewModelScope.launch { reloadRecords() }
+    }
+
+    /**
+     * Downloads PSE prices again (failed RCE days are never cached) and recomputes the analysis.
+     */
+    fun retryPrices() {
+        pricesRetry.update { it + 1 }
     }
 
     /** Values the selected period at hourly RCE prices. */

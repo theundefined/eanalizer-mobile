@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -73,7 +74,7 @@ class RceClient(private val cacheDir: File) {
         RceAnalysis.hourlyPrices(entries) to results.count { it == null }
     }
 
-    private fun day(day: LocalDate): List<Entry> {
+    private suspend fun day(day: LocalDate): List<Entry> {
         val dir = File(cacheDir, "rce").apply { mkdirs() }
         val cache = File(dir, "$day.json")
         if (cache.isFile) {
@@ -85,11 +86,7 @@ class RceClient(private val cacheDir: File) {
         }
         val filter = URLEncoder.encode("business_date eq '$day'", "UTF-8").replace("+", "%20")
         val url = "$API?\$filter=$filter&\$orderby=business_date%20asc&\$first=20000"
-        val body =
-            http.newCall(Request.Builder().url(url).build()).execute().use { resp ->
-                if (!resp.isSuccessful) throw IOException("PSE HTTP ${resp.code}")
-                resp.body?.string() ?: ""
-            }
+        val body = fetch(Request.Builder().url(url).build())
         val value =
             json.parseToJsonElement(body).jsonObject["value"] as? JsonArray
                 ?: JsonArray(emptyList())
@@ -109,9 +106,13 @@ class RceClient(private val cacheDir: File) {
 
     /**
      * Monthly RCEm (zł/kWh) for [months]. The PSE page is downloaded again only when a needed month
-     * is missing and the cache is older than 12 h. Missing months are simply absent from the map.
+     * is missing and the cache is older than 12 h (or regardless of its age with [force]). Missing
+     * months are simply absent from the map.
      */
-    suspend fun monthlyPrices(months: Collection<YearMonth>): Map<YearMonth, Double> =
+    suspend fun monthlyPrices(
+        months: Collection<YearMonth>,
+        force: Boolean = false,
+    ): Map<YearMonth, Double> =
         withContext(Dispatchers.IO) {
             val cacheFile = File(cacheDir, "rcem.json")
             val cache =
@@ -119,23 +120,20 @@ class RceClient(private val cacheDir: File) {
             var prices = cache?.prices?.mapKeys { YearMonth.parse(it.key) } ?: emptyMap()
             val fresh =
                 cache != null && System.currentTimeMillis() - cache.fetchedAt < RCEM_MAX_AGE_MS
-            if (months.any { it !in prices } && !fresh) {
+            if (months.any { it !in prices } && (force || !fresh)) {
                 val parsed =
-                    runCatching {
-                            http
-                                .newCall(
-                                    Request.Builder()
-                                        .url(RCEM_URL)
-                                        .header("User-Agent", "Mozilla/5.0")
-                                        .build()
-                                )
-                                .execute()
-                                .use { resp ->
-                                    if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
-                                    RcemParser.parse(resp.body?.string() ?: "")
-                                }
-                        }
-                        .getOrDefault(emptyMap())
+                    try {
+                        RcemParser.parse(
+                            fetch(
+                                Request.Builder()
+                                    .url(RCEM_URL)
+                                    .header("User-Agent", "Mozilla/5.0")
+                                    .build()
+                            )
+                        )
+                    } catch (e: IOException) {
+                        emptyMap()
+                    }
                 if (parsed.isNotEmpty()) {
                     prices = prices + parsed
                     cacheDir.mkdirs()
@@ -152,7 +150,24 @@ class RceClient(private val cacheDir: File) {
             prices.filterKeys { it in months }
         }
 
+    /** GET with a few retries - PSE occasionally times out or answers 5xx. */
+    private suspend fun fetch(request: Request): String {
+        var attempt = 0
+        while (true) {
+            try {
+                return http.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw IOException("PSE HTTP ${resp.code}")
+                    resp.body?.string() ?: ""
+                }
+            } catch (e: IOException) {
+                if (++attempt >= FETCH_ATTEMPTS) throw e
+                delay(1000L * attempt)
+            }
+        }
+    }
+
     private companion object {
+        const val FETCH_ATTEMPTS = 3
         const val API = "https://api.raporty.pse.pl/api/rce-pln"
         const val RCEM_URL =
             "https://www.pse.pl/oire/rcem-rynkowa-miesieczna-cena-energii-elektrycznej"

@@ -85,6 +85,7 @@
     <string name="nb_expired">Expired deposit</string>
     <string name="nb_deposit_left">Deposit at end of period</string>
     <string name="nb_missing_rcem">No RCEm prices for: %1$s — exported energy was not valued.</string>
+    <string name="nb_retry_prices">Retry downloading PSE prices</string>
     <string name="nb_missing_rce">No RCE prices for %1$d hours with export.</string>
     <string name="nb_prices_unavailable">Could not download PSE prices — the deposit was not valued.</string>
 

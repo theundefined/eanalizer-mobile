@@ -16,6 +16,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,7 +117,7 @@ fun ParamsCard(state: UiState, onChange: ((AnalysisPrefs) -> AnalysisPrefs) -> U
 }
 
 @Composable
-fun SummaryCard(state: UiState) {
+fun SummaryCard(state: UiState, onRetryPrices: () -> Unit) {
     val a = state.analysis
     if (a == null) {
         SectionCard {
@@ -142,7 +143,14 @@ fun SummaryCard(state: UiState) {
             zl(nb?.calkowityKoszt ?: r.totalCost),
             emphasized = true,
         )
-        if (nb != null) NetBillingRows(nb, a.missingRcem.map { it.toString() }, a.pricesUnavailable)
+        if (nb != null)
+            NetBillingRows(
+                nb,
+                a.missingRcem.map { it.toString() },
+                a.pricesUnavailable,
+                retryEnabled = !state.analyzing,
+                onRetry = onRetryPrices,
+            )
         else {
             ValueRow(stringResource(R.string.energy_cost), zl(r.energyCost))
             ValueRow(stringResource(R.string.fixed_fees, r.months), zl(r.fixedFees))
@@ -190,7 +198,13 @@ fun SummaryCard(state: UiState) {
 }
 
 @Composable
-fun NetBillingRows(nb: NetBillingResult, missingRcem: List<String>, pricesUnavailable: Boolean) {
+fun NetBillingRows(
+    nb: NetBillingResult,
+    missingRcem: List<String>,
+    pricesUnavailable: Boolean,
+    retryEnabled: Boolean,
+    onRetry: () -> Unit,
+) {
     ValueRow(stringResource(R.string.nb_energy_cost), zl(nb.kosztEnergii))
     ValueRow(stringResource(R.string.nb_deposit_value), zl(nb.wartoscDepozytu))
     ValueRow(stringResource(R.string.nb_covered), zl(nb.pokryteDepozytem))
@@ -222,6 +236,11 @@ fun NetBillingRows(nb: NetBillingResult, missingRcem: List<String>, pricesUnavai
             color = warn,
             style = MaterialTheme.typography.bodySmall
         )
+    }
+    if (pricesUnavailable || missingRcem.isNotEmpty() || nb.missingRceHours > 0) {
+        TextButton(onClick = onRetry, enabled = retryEnabled) {
+            Text(stringResource(R.string.nb_retry_prices))
+        }
     }
 }
 

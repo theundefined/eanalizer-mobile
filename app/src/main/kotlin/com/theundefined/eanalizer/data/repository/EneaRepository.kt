@@ -158,8 +158,10 @@ class EneaRepository(context: Context) {
         onProgress: (Int, Int) -> Unit = { _, _ -> },
     ): Pair<Map<LocalDateTime, Double>, Int> = rce.hourlyPrices(from, to, onProgress)
 
-    suspend fun rcemPrices(months: Collection<YearMonth>): Map<YearMonth, Double> =
-        rce.monthlyPrices(months)
+    suspend fun rcemPrices(
+        months: Collection<YearMonth>,
+        force: Boolean = false,
+    ): Map<YearMonth, Double> = rce.monthlyPrices(months, force)
 
     /** Writes [content] to `cacheDir/export/<name>` for sharing via FileProvider. */
     fun exportFile(name: String, content: String): File {
