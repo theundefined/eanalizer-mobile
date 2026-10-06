@@ -33,7 +33,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.domain.AggregateRow
+import com.theundefined.eanalizer.domain.ZonePrice
 import com.theundefined.eanalizer.ui.kwh
+import com.theundefined.eanalizer.ui.zl
 
 /** Fixed categorical pair (validated for CVD separation), stepped per light/dark surface. */
 @Composable
@@ -46,7 +48,11 @@ internal fun seriesColors(): Pair<Color, Color> =
  * bar shows its values above the chart; first/last keys are printed under it.
  */
 @Composable
-fun ImportExportChart(rows: List<AggregateRow>, modifier: Modifier = Modifier) {
+fun ImportExportChart(
+    rows: List<AggregateRow>,
+    modifier: Modifier = Modifier,
+    underBars: (@Composable () -> Unit)? = null,
+) {
     if (rows.isEmpty()) return
     val (importColor, exportColor) = seriesColors()
     val gridColor = MaterialTheme.colorScheme.outlineVariant
@@ -105,6 +111,7 @@ fun ImportExportChart(rows: List<AggregateRow>, modifier: Modifier = Modifier) {
             }
             drawLine(gridColor, Offset(0f, zeroY), Offset(size.width, zeroY), 1.dp.toPx())
         }
+        underBars?.invoke()
         Row(modifier = Modifier.fillMaxWidth()) {
             MutedText(rows.first().key)
             Box(Modifier.weight(1f))
@@ -223,6 +230,9 @@ fun PairedBarChart(
     }
 }
 
+/** Width of the row labels in [HeatmapChart] (rows added under it should start after it). */
+internal val HeatmapLabelWidth = 64.dp
+
 /**
  * Rows of 24 hourly cells: import (positive) in the consumption colour, export (negative) in the
  * export colour, intensity by magnitude. Tapping a cell shows its value.
@@ -234,6 +244,7 @@ fun HeatmapChart(
     maxAbs: Double,
     format: (Double) -> String,
     modifier: Modifier = Modifier,
+    underCells: (@Composable () -> Unit)? = null,
 ) {
     if (values.isEmpty()) return
     val (importColor, exportColor) = seriesColors()
@@ -259,7 +270,7 @@ fun HeatmapChart(
         )
         values.forEachIndexed { r, row ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                MutedText(rowLabels[r], modifier = Modifier.width(64.dp))
+                MutedText(rowLabels[r], modifier = Modifier.width(HeatmapLabelWidth))
                 Canvas(
                     modifier =
                         Modifier.weight(1f).height(16.dp).pointerInput(row) {
@@ -300,9 +311,87 @@ fun HeatmapChart(
                 }
             }
         }
+        underCells?.invoke()
         Row(modifier = Modifier.fillMaxWidth()) {
-            Box(Modifier.width(64.dp))
+            Box(Modifier.width(HeatmapLabelWidth))
             listOf(0, 6, 12, 18).forEach { h -> MutedText("$h:00", modifier = Modifier.weight(1f)) }
         }
     }
+}
+
+/**
+ * Neutral shade (alpha of `onSurface`) per zone name, darker = more expensive, so the zones don't
+ * compete with the blue/orange data colours.
+ */
+fun zoneShades(zones: List<ZonePrice?>): Map<String, Float> {
+    val sorted = zones.filterNotNull().distinctBy { it.zone }.sortedBy { it.price }
+    return sorted
+        .mapIndexed { i, z ->
+            z.zone to if (sorted.size == 1) 0.3f else 0.12f + 0.48f * i / (sorted.size - 1)
+        }
+        .toMap()
+}
+
+/** 24 hourly segments shaded by tariff zone (see [zoneShades]); unmatched hours stay empty. */
+@Composable
+fun TariffZoneStrip(
+    zones: List<ZonePrice?>,
+    shades: Map<String, Float>,
+    modifier: Modifier = Modifier,
+) {
+    val base = MaterialTheme.colorScheme.onSurface
+    Canvas(modifier = modifier.fillMaxWidth().height(12.dp)) {
+        val cell = size.width / zones.size
+        val gap = 2.dp.toPx()
+        zones.forEachIndexed { h, z ->
+            if (z == null) return@forEachIndexed
+            // Gap only where the zone changes, so a zone reads as one block.
+            val left = if (h > 0 && zones[h - 1]?.zone != z.zone) gap / 2 else 0f
+            val right = if (h < zones.lastIndex && zones[h + 1]?.zone != z.zone) gap / 2 else 0f
+            drawRect(
+                base.copy(alpha = shades[z.zone] ?: 0.3f),
+                topLeft = Offset(h * cell + left, 0f),
+                size = Size(cell - left - right, size.height),
+            )
+        }
+    }
+}
+
+/** One line per zone: swatch, name, hours (e.g. `22–6, 13–15`) and price per kWh. */
+@Composable
+fun TariffZoneLegend(zones: List<ZonePrice?>, shades: Map<String, Float>) {
+    val base = MaterialTheme.colorScheme.onSurface
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        zones
+            .filterNotNull()
+            .distinctBy { it.zone }
+            .sortedBy { it.price }
+            .forEach { z ->
+                LegendItem(
+                    base.copy(alpha = shades[z.zone] ?: 0.3f),
+                    stringResource(
+                        R.string.tariff_zone_legend,
+                        z.zone,
+                        zoneHours(zones, z.zone),
+                        zl(z.price),
+                    ),
+                )
+            }
+    }
+}
+
+/** Hour ranges of [zone], a range crossing midnight joined into one (`22–6`). */
+internal fun zoneHours(zones: List<ZonePrice?>, zone: String): String {
+    val runs = mutableListOf<IntArray>()
+    zones.forEachIndexed { h, z ->
+        if (z?.zone != zone) return@forEachIndexed
+        val last = runs.lastOrNull()
+        if (last != null && last[1] == h) last[1] = h + 1 else runs += intArrayOf(h, h + 1)
+    }
+    if (runs.size > 1 && runs.first()[0] == 0 && runs.last()[1] == zones.size) {
+        runs.last()[1] = runs.first()[1]
+        runs.removeAt(0)
+        runs.add(0, runs.removeAt(runs.lastIndex))
+    }
+    return runs.joinToString(", ") { (a, b) -> "$a–$b" }
 }

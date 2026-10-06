@@ -52,17 +52,28 @@ class TariffTable(val zones: List<TariffZone>) {
      * always uses those; first matching row wins. Null if nothing matches.
      */
     fun resolve(ts: LocalDateTime, tariff: String): ZonePrice? {
+        val weekend =
+            ts.dayOfWeek == DayOfWeek.SATURDAY ||
+                ts.dayOfWeek == DayOfWeek.SUNDAY ||
+                PolishHolidays.isHoliday(ts.toLocalDate())
+        return zoneAt(rules(tariff), ts.hour, weekend)
+    }
+
+    /** Zone of each hour 0..23 of a workday or a weekend/holiday (same rules as [resolve]). */
+    fun hourlyZones(tariff: String, weekend: Boolean): List<ZonePrice?> {
         val rules = rules(tariff)
+        return (0..23).map { zoneAt(rules, it, weekend) }
+    }
+
+    private fun zoneAt(rules: List<TariffZone>, hour: Int, weekend: Boolean): ZonePrice? {
         val dayType =
             when {
                 rules.any { it.dayType == DayType.ALL } -> DayType.ALL
-                ts.dayOfWeek == DayOfWeek.SATURDAY ||
-                    ts.dayOfWeek == DayOfWeek.SUNDAY ||
-                    PolishHolidays.isHoliday(ts.toLocalDate()) -> DayType.WEEKEND
+                weekend -> DayType.WEEKEND
                 else -> DayType.WEEKDAY
             }
         return rules
-            .firstOrNull { it.dayType == dayType && it.covers(ts.hour) }
+            .firstOrNull { it.dayType == dayType && it.covers(hour) }
             ?.let { ZonePrice(it.zoneName, it.energyPrice, it.distPrice) }
     }
 

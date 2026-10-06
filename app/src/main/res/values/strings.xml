@@ -236,6 +236,10 @@
     <string name="profile_workdays">Dni robocze</string>
     <string name="profile_weekends">Weekendy i święta</string>
     <string name="profile_unit">Średnio kWh w danej godzinie.</string>
+    <string name="profile_tariff_zones">Strefy taryfy %1$s (pasek pod wykresem):</string>
+    <string name="profile_workdays_short">Robocze</string>
+    <string name="profile_weekends_short">Weekend</string>
+    <string name="tariff_zone_legend">%1$s: %2$s, %3$s/kWh</string>
     <string name="profile_heatmap">Mapa godzin</string>
     <string name="heatmap_import">Przewaga poboru</string>
     <string name="heatmap_export">Przewaga oddania</string>

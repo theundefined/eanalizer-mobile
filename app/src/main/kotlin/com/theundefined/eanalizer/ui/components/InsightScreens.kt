@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -24,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -314,6 +316,10 @@ fun ProfileScreen(state: UiState, onBack: () -> Unit) {
             return@SubScreen
         }
         item { PeriodInfo(a) }
+        val tariff = a.inputs.tariff
+        val zonesWorkday = a.inputs.tariffs.hourlyZones(tariff, weekend = false)
+        val zonesWeekend = a.inputs.tariffs.hourlyZones(tariff, weekend = true)
+        val shades = zoneShades(zonesWorkday + zonesWeekend)
         item {
             var weekends by rememberSaveable { mutableStateOf(false) }
             SectionCard(title = stringResource(R.string.profile_day)) {
@@ -333,14 +339,18 @@ fun ProfileScreen(state: UiState, onBack: () -> Unit) {
                     }
                 }
                 val hours = if (weekends) a.dayProfile.weekends else a.dayProfile.workdays
+                val zones = if (weekends) zonesWeekend else zonesWorkday
                 ImportExportChart(
                     remember(hours) {
                         hours.map {
                             AggregateRow("%02d:00".format(it.hour), it.pobor, it.oddanie, 0.0, 0.0)
                         }
-                    }
+                    },
+                    underBars = { TariffZoneStrip(zones, shades) },
                 )
                 MutedText(stringResource(R.string.profile_unit))
+                MutedText(stringResource(R.string.profile_tariff_zones, tariff))
+                TariffZoneLegend(zones, shades)
             }
         }
         item {
@@ -350,6 +360,24 @@ fun ProfileScreen(state: UiState, onBack: () -> Unit) {
                     values = a.heatmap.values,
                     maxAbs = a.heatmap.maxAbs,
                     format = { kwh(it) },
+                    underCells = {
+                        val rows =
+                            if (zonesWorkday == zonesWeekend) listOf(tariff to zonesWorkday)
+                            else
+                                listOf(
+                                    stringResource(R.string.profile_workdays_short) to zonesWorkday,
+                                    stringResource(R.string.profile_weekends_short) to zonesWeekend,
+                                )
+                        rows.forEach { (label, zones) ->
+                            Row(
+                                Modifier.padding(top = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                MutedText(label, modifier = Modifier.width(HeatmapLabelWidth))
+                                TariffZoneStrip(zones, shades, Modifier.weight(1f))
+                            }
+                        }
+                    },
                 )
             }
         }

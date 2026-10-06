@@ -234,6 +234,10 @@
     <string name="profile_workdays">Workdays</string>
     <string name="profile_weekends">Weekends &amp; holidays</string>
     <string name="profile_unit">Average kWh in a given hour.</string>
+    <string name="profile_tariff_zones">%1$s tariff zones (strip under the chart):</string>
+    <string name="profile_workdays_short">Workdays</string>
+    <string name="profile_weekends_short">Weekend</string>
+    <string name="tariff_zone_legend">%1$s: %2$s, %3$s/kWh</string>
     <string name="profile_heatmap">Hour map</string>
     <string name="heatmap_import">Mostly import</string>
     <string name="heatmap_export">Mostly export</string>

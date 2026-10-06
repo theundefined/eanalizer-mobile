@@ -47,6 +47,24 @@ class TariffsTest {
     }
 
     @Test
+    fun hourlyZones() {
+        val g12 = table.hourlyZones("G12", weekend = false).map { it!!.zone }
+        assertEquals(List(6) { "nocna" }, g12.subList(0, 6))
+        assertEquals(List(7) { "dzienna" }, g12.subList(6, 13))
+        assertEquals(listOf("nocna", "nocna"), g12.subList(13, 15))
+        assertEquals(List(7) { "dzienna" }, g12.subList(15, 22))
+        assertEquals(listOf("nocna", "nocna"), g12.subList(22, 24))
+        assertEquals(g12, table.hourlyZones("G12", weekend = true).map { it!!.zone })
+        val g12w = table.hourlyZones("G12w", weekend = false).map { it!!.zone }
+        assertEquals("pozaszczytowa", g12w[5])
+        assertEquals("szczytowa", g12w[6])
+        assertEquals("szczytowa", g12w[20])
+        assertEquals("pozaszczytowa", g12w[21])
+        assertTrue(table.hourlyZones("G12w", weekend = true).all { it!!.zone == "pozaszczytowa" })
+        assertTrue(table.hourlyZones("X", weekend = false).all { it == null })
+    }
+
+    @Test
     fun caseInsensitiveAndUnknown() {
         assertEquals("szczytowa", table.resolve(at(2025, 4, 2, 10), "g12W")!!.zone)
         assertNull(table.resolve(at(2025, 4, 2, 10), "NIEISTNIEJACA"))
