@@ -86,6 +86,8 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                             ErrorKind.NETWORK -> resources.getString(R.string.error_network)
                             ErrorKind.PROTOCOL ->
                                 resources.getString(R.string.error_protocol, event.detail ?: "")
+                            ErrorKind.NO_METER_DATA ->
+                                resources.getString(R.string.error_no_meter_data)
                             ErrorKind.UNKNOWN ->
                                 resources.getString(R.string.error_generic, event.detail ?: "")
                         }

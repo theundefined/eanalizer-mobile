@@ -54,6 +54,7 @@ enum class ErrorKind {
     SESSION_EXPIRED,
     NETWORK,
     PROTOCOL,
+    NO_METER_DATA,
     UNKNOWN,
 }
 

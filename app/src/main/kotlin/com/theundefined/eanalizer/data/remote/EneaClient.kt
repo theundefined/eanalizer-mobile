@@ -65,11 +65,9 @@ class EneaClient(cookieJar: CookieJar, private val userAgent: () -> String) {
         }
     }
 
-    fun meterInfo(): EneaMeterInfo =
-        call(get(SUMMARY_URL, "$BASE/dashboard")) { _, body ->
-            EneaHtml.parseMeterInfo(body)
-                ?: throw EneaProtocolException("pointOfDeliveryId / years not found")
-        }
+    /** Meter info of the selected customer; null when it has no hourly data (no meter). */
+    fun meterInfoOrNull(): EneaMeterInfo? =
+        call(get(SUMMARY_URL, "$BASE/dashboard")) { _, body -> EneaHtml.parseMeterInfo(body) }
 
     /** Hourly CSV for [year]; null when Enea returned no data. */
     fun downloadYear(year: Int, pointOfDeliveryId: String): String? {

@@ -9,6 +9,7 @@ import com.theundefined.eanalizer.data.remote.EneaProtocolException
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
 import com.theundefined.eanalizer.data.repository.CustomerSelectionRequiredException
 import com.theundefined.eanalizer.data.repository.EneaRepository
+import com.theundefined.eanalizer.data.repository.NoMeterDataException
 import com.theundefined.eanalizer.domain.Aggregation
 import com.theundefined.eanalizer.domain.AnalysisResult
 import com.theundefined.eanalizer.domain.Analyzer
@@ -225,6 +226,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     _uiState.update {
                         it.copy(customers = e.customers, customerChoice = e.customers)
                     }
+                } catch (e: NoMeterDataException) {
+                    _events.emit(UiEvent.Error(ErrorKind.NO_METER_DATA))
                 } catch (e: EneaProtocolException) {
                     _events.emit(UiEvent.Error(ErrorKind.PROTOCOL, e.message))
                 } catch (e: IOException) {

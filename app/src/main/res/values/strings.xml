@@ -14,6 +14,7 @@
     <string name="error_network">Brak połączenia z siecią</string>
     <string name="error_session">Sesja Enea wygasła — zaloguj się ponownie</string>
     <string name="error_protocol">Nieoczekiwana odpowiedź eBOK Enea (%1$s). Możliwa zmiana strony.</string>
+    <string name="error_no_meter_data">Żaden klient na koncie Enea nie ma godzinowych danych z licznika.</string>
     <plurals name="sync_done">
         <item quantity="one">Pobrano dane za %1$d rok</item>
         <item quantity="few">Pobrano dane za %1$d lata</item>
@@ -159,7 +160,7 @@
     <string name="logout">Wyloguj</string>
     <string name="customer">Klient (numer)</string>
     <string name="choose_customer">Wybierz klienta</string>
-    <string name="choose_customer_info">Na koncie jest kilku klientów. Wybierz, czyje dane pobrać.</string>
+    <string name="choose_customer_info">Kilku klientów na koncie ma godzinowe dane z licznika. Wybierz, czyje dane pobrać.</string>
     <string name="force_sync">Pobierz wszystkie dane ponownie</string>
     <string name="clear_all">Usuń wszystkie dane</string>
     <string name="clear_all_confirm">Usunąć pobrane dane, sesję i zapisane dane logowania?</string>

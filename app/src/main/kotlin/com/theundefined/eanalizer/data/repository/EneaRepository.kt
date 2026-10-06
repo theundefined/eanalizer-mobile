@@ -7,6 +7,7 @@ import com.theundefined.eanalizer.data.local.SettingsStore
 import com.theundefined.eanalizer.data.local.WebViewCookieJar
 import com.theundefined.eanalizer.data.remote.EneaClient
 import com.theundefined.eanalizer.data.remote.EneaCustomer
+import com.theundefined.eanalizer.data.remote.EneaMeterInfo
 import com.theundefined.eanalizer.data.remote.EneaProtocolException
 import com.theundefined.eanalizer.data.remote.RceClient
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
@@ -22,13 +23,17 @@ import kotlinx.coroutines.withContext
 class CustomerSelectionRequiredException(val customers: List<EneaCustomer>) :
     Exception("customer selection required")
 
+/** No customer on the account has hourly meter data. */
+class NoMeterDataException : Exception("no customer with hourly data")
+
 /** Result of a sync: years downloaded now and years that Enea returned empty. */
 data class SyncResult(val downloaded: List<Int>, val empty: List<Int>)
 
 /**
  * Orchestrates eBOK session, CSV sync and local storage, plus PSE prices. Errors are typed
  * exceptions ([SessionExpiredException], [CustomerSelectionRequiredException],
- * [EneaProtocolException], [java.io.IOException]); user-facing text comes from the UI.
+ * [NoMeterDataException], [EneaProtocolException], [java.io.IOException]); user-facing text comes
+ * from the UI.
  */
 class EneaRepository(context: Context) {
     private val appContext = context.applicationContext
@@ -58,8 +63,7 @@ class EneaRepository(context: Context) {
                 throw SessionExpiredException()
             }
             settings.loggedIn = true
-            selectCustomer()
-            val info = enea.meterInfo()
+            val info = selectCustomer() ?: throw NoMeterDataException()
             val downloaded = ArrayList<Int>()
             val empty = ArrayList<Int>()
             for (year in info.minYear..info.maxYear) {
@@ -76,17 +80,45 @@ class EneaRepository(context: Context) {
             SyncResult(downloaded, empty)
         }
 
-    /** Selects the configured customer; with one customer selects it, with none skips. */
-    private fun selectCustomer() {
+    /**
+     * Selects the configured customer and returns its meter info. Like eanalizer's setup, only
+     * customers with hourly data (a point of delivery on the meter page) are offered: when the
+     * configured one is missing or has no data, every customer is probed; a single one with data is
+     * chosen automatically, several make the user pick. Without the selection page (one customer)
+     * the current one is used.
+     */
+    private fun selectCustomer(): EneaMeterInfo? {
         val customers = enea.customers()
-        settings.customers = customers
-        if (customers.isEmpty()) return
-        val chosen =
-            customers.firstOrNull { it.number == settings.customerNumber }
-                ?: customers.singleOrNull()
-                ?: throw CustomerSelectionRequiredException(customers)
+        if (customers.isEmpty()) {
+            settings.customers = customers
+            return enea.meterInfoOrNull()
+        }
+        customers
+            .firstOrNull { it.number == settings.customerNumber }
+            ?.let { configured ->
+                enea.selectCustomer(configured.guid)
+                enea.meterInfoOrNull()?.let { info ->
+                    settings.customers =
+                        settings.customers.filter { it in customers }.ifEmpty { listOf(configured) }
+                    return info
+                }
+            }
+        val withData =
+            customers.mapNotNull { c ->
+                enea.selectCustomer(c.guid)
+                enea.meterInfoOrNull()?.let { c to it }
+            }
+        settings.customers = withData.map { it.first }
+        val (chosen, info) =
+            when (withData.size) {
+                0 -> throw NoMeterDataException()
+                1 -> withData.single()
+                else -> throw CustomerSelectionRequiredException(withData.map { it.first })
+            }
         settings.customerNumber = chosen.number
-        enea.selectCustomer(chosen.guid)
+        // The probe left the last customer selected on the server.
+        if (chosen != customers.last()) enea.selectCustomer(chosen.guid)
+        return info
     }
 
     /** Switching customers drops data downloaded for the previous one. */
