@@ -68,6 +68,25 @@ class InsightsTest {
     }
 
     @Test
+    fun byYearSplitByTariffZone() {
+        // 2024-05-02 is a workday: 3:00 off-peak, 10:00 peak in G12w.
+        val data =
+            listOf(
+                rec(at(2023, 5, 2, 3), 1.0, 0.0),
+                rec(at(2024, 5, 2, 3), 2.0, 0.0),
+                rec(at(2024, 5, 2, 10), 4.0, 1.0),
+            )
+        val y = Insights.byYear(data, TariffTable.default(), "G12w")
+        val may = y[0].months[4]!!
+        assertEquals(6.0, may.poborPrzed, eps)
+        assertEquals(listOf("pozaszczytowa", "szczytowa"), may.zones.map { it.zone })
+        assertEquals(listOf(2.0, 4.0), may.zones.map { it.poborPrzed })
+        assertEquals(listOf(0.0, 1.0), may.zones.map { it.oddaniePrzed })
+        assertEquals(listOf(1.0), y[1].months[4]!!.zones.map { it.poborPrzed })
+        assertTrue(Insights.byYear(data).all { yr -> yr.months.all { it?.zones.isNullOrEmpty() } })
+    }
+
+    @Test
     fun pvSharesSumToOne() {
         assertEquals(1.0, Insights.PV_MONTHLY_SHARE.sum(), 1e-9)
         assertEquals(12, Insights.PV_MONTHLY_SHARE.size)

@@ -198,7 +198,7 @@
     <string name="nav_bills_desc">Miesięczne rozliczenie w układzie zbliżonym do faktury</string>
     <string name="nav_storage_desc">Oszczędności i zwrot z magazynu energii</string>
     <string name="nav_monthly_desc">Pobór i oddanie w kolejnych miesiącach</string>
-    <string name="nav_yoy_desc">Porównanie miesięcy dwóch lat</string>
+    <string name="nav_yoy_desc">Porównanie miesięcy wybranych lat z podziałem na strefy</string>
     <string name="nav_profile_desc">Średnia doba i mapa godzin</string>
     <string name="nav_selfuse_desc">Ile produkcji PV zużywasz na miejscu</string>
     <string name="nav_data_desc">Dni, braki w danych</string>
@@ -266,8 +266,8 @@
     <string name="storage_tariffs_hint">• obecna taryfa. Z magazynem najtańsza może być inna taryfa niż bez niego.</string>
     <!-- Year over year -->
     <string name="yoy_info">Wszystkie pobrane dane (niezależnie od wybranego okresu), wartości przed bilansowaniem.</string>
-    <string name="yoy_year_a">Rok:</string>
-    <string name="yoy_year_b">Porównaj z:</string>
+    <string name="yoy_years">Lata:</string>
+    <string name="yoy_month_kwh">Miesiąc [kWh]</string>
     <string name="yoy_change">Zmiana</string>
     <string name="yoy_partial">Miesiące bez pełnych danych zaniżają sumy; „—” oznacza brak danych.</string>
     <!-- Profile -->

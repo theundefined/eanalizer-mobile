@@ -91,9 +91,17 @@ object Insights {
         return Heatmap(byMonth.keys.toList(), values)
     }
 
-    /** Monthly sums grouped by year, newest year first. */
-    fun byYear(records: List<HourlyRecord>): List<YearMonths> {
-        val monthly = Aggregation.monthly(records).associateBy { YearMonth.parse(it.key) }
+    /**
+     * Monthly sums grouped by year, newest year first. With [table] and [tariff] every month is
+     * also split by the tariff's zones (see [Aggregation.monthly]).
+     */
+    fun byYear(
+        records: List<HourlyRecord>,
+        table: TariffTable? = null,
+        tariff: String? = null,
+    ): List<YearMonths> {
+        val monthly =
+            Aggregation.monthly(records, table, tariff).associateBy { YearMonth.parse(it.key) }
         return monthly.keys
             .map { it.year }
             .distinct()

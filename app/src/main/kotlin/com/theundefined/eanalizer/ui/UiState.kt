@@ -53,6 +53,8 @@ data class Analysis(
     val bills: List<MonthlyBill>,
     /** Self-consumption with production for 1 kWh/year (scale by the annual production). */
     val selfUseUnit: List<SelfUseMonth>,
+    /** All data (not just the period) by year, months split by the tariff's zones. */
+    val years: List<YearMonths>,
     /** Inputs kept for on-demand reports (storage scenarios, dynamic tariff). */
     val inputs: AnalysisInputs,
 )

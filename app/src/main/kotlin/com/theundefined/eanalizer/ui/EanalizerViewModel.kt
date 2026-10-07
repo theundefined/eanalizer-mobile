@@ -260,6 +260,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 heatmap = Insights.heatmap(recs),
                 bills = Bills.monthly(result.simulation, tariffs, tariff, nb),
                 selfUseUnit = Insights.selfUse(recs, 1.0),
+                years = Insights.byYear(all, tariffs, tariff),
                 inputs = AnalysisInputs(recs, history, prefs, tariffs, tariff, ratio, rce, rcem),
             )
         }

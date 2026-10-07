@@ -3,6 +3,7 @@ package com.theundefined.eanalizer.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -65,27 +67,15 @@ fun ImportExportChart(
     val maxUp = rows.maxOf { it.poborPrzed }.coerceAtLeast(0.001)
     val maxDown = rows.maxOf { it.oddaniePrzed }
     val total = maxUp + maxDown
-    val zoneAlpha =
-        remember(rows) {
-            val zones =
-                rows
-                    .flatMap { it.zones }
-                    .distinctBy { it.zone }
-                    .sortedBy { it.price }
-                    .map { it.zone }
-            zones
-                .mapIndexed { i, z ->
-                    z to if (zones.size < 2) 1f else 0.4f + 0.6f * i / (zones.size - 1)
-                }
-                .toMap()
-        }
+    val zoneAlpha = remember(rows) { zoneAlpha(rows) }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             LegendItem(importColor, stringResource(R.string.legend_consumption))
             LegendItem(exportColor, stringResource(R.string.legend_export))
         }
-        if (zoneAlpha.size > 1) ZoneLegend(rows, zoneAlpha, tariff, importColor, exportColor)
+        if (zoneAlpha.size > 1)
+            ZoneLegend(rows, zoneAlpha, tariff, listOf(importColor, exportColor))
         val sel = selected?.let { rows.getOrNull(it) }
         MutedText(
             if (sel == null) stringResource(R.string.chart_hint)
@@ -176,6 +166,15 @@ fun ImportExportChart(
     }
 }
 
+/** Alpha per zone of split [rows]: the cheapest zone lightest, the priciest fully opaque. */
+private fun zoneAlpha(rows: List<AggregateRow>): Map<String, Float> {
+    val zones =
+        rows.flatMap { it.zones }.distinctBy { it.zone }.sortedBy { it.price }.map { it.zone }
+    return zones
+        .mapIndexed { i, z -> z to if (zones.size < 2) 1f else 0.4f + 0.6f * i / (zones.size - 1) }
+        .toMap()
+}
+
 /** Bar rounded only at its data end (top for upward bars, bottom for downward ones). */
 private fun roundedBar(
     x: Float,
@@ -209,8 +208,7 @@ private fun ZoneLegend(
     rows: List<AggregateRow>,
     zoneAlpha: Map<String, Float>,
     tariff: String?,
-    importColor: Color,
-    exportColor: Color,
+    colors: List<Color>,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (tariff != null) MutedText(stringResource(R.string.chart_zones, tariff))
@@ -225,8 +223,7 @@ private fun ZoneLegend(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Swatch(importColor.copy(alpha = a))
-                        Swatch(exportColor.copy(alpha = a))
+                        colors.forEach { Swatch(it.copy(alpha = a)) }
                     }
                     MutedText(
                         if (z.zone == Aggregation.UNKNOWN_ZONE) zoneLabel(z.zone)
@@ -258,40 +255,87 @@ private fun LegendItem(color: Color, label: String) {
 }
 
 /**
- * Two series side by side per key (e.g. the same month of two years). Tapping a group shows its
- * values; [format] renders a value.
+ * Fixed categorical palette (validated for adjacent CVD separation), stepped per light/dark
+ * surface. Slots 1-2 equal [seriesColors].
  */
 @Composable
-fun PairedBarChart(
-    keys: List<String>,
-    a: List<Double?>,
-    b: List<Double?>,
-    labelA: String,
-    labelB: String,
-    format: (Double) -> String,
-    modifier: Modifier = Modifier,
-) {
-    if (keys.isEmpty()) return
-    val colorA = MaterialTheme.colorScheme.primary
-    val colorB = MaterialTheme.colorScheme.tertiary
-    val gridColor = MaterialTheme.colorScheme.outlineVariant
-    var selected by remember(keys, a, b) { mutableStateOf<Int?>(null) }
-    val max = (a + b).filterNotNull().maxOrNull()?.coerceAtLeast(0.001) ?: 1.0
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            LegendItem(colorA, labelA)
-            LegendItem(colorB, labelB)
-        }
-        val sel = selected
-        MutedText(
-            if (sel == null) stringResource(R.string.chart_hint)
-            else
-                "${keys[sel]}: $labelA ${a[sel]?.let(format) ?: "—"}, " +
-                    "$labelB ${b[sel]?.let(format) ?: "—"}"
+internal fun categoricalColors(): List<Color> =
+    if (isSystemInDarkTheme())
+        listOf(
+            Color(0xFF3987E5),
+            Color(0xFFD95926),
+            Color(0xFF199E70),
+            Color(0xFFC98500),
+            Color(0xFFD55181),
+            Color(0xFF008300),
+            Color(0xFF9085E9),
+            Color(0xFFE66767),
         )
+    else
+        listOf(
+            Color(0xFF2A78D6),
+            Color(0xFFEB6834),
+            Color(0xFF1BAF7A),
+            Color(0xFFEDA100),
+            Color(0xFFE87BA4),
+            Color(0xFF008300),
+            Color(0xFF4A3AA7),
+            Color(0xFFE34948),
+        )
+
+/** One series of [GroupedZoneBarChart]: a row (or null = no data) per key. */
+data class BarSeries(val label: String, val color: Color, val rows: List<AggregateRow?>)
+
+/**
+ * Several series side by side per key (e.g. the same month of several years), each bar stacked by
+ * tariff zone ([AggregateRow.zones], cheapest at the bottom, more opaque = pricier). [export] plots
+ * the export instead of the consumption (both before balancing). Tapping a group shows its values
+ * per series and zone.
+ */
+@Composable
+fun GroupedZoneBarChart(
+    keys: List<String>,
+    series: List<BarSeries>,
+    export: Boolean,
+    modifier: Modifier = Modifier,
+    tariff: String? = null,
+) {
+    if (keys.isEmpty() || series.isEmpty()) return
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    var selected by remember(keys, series) { mutableStateOf<Int?>(null) }
+    fun total(r: AggregateRow) = if (export) r.oddaniePrzed else r.poborPrzed
+    fun part(z: ZoneVolume) = if (export) z.oddaniePrzed else z.poborPrzed
+    val allRows = remember(series) { series.flatMap { it.rows.filterNotNull() } }
+    val max = (allRows.maxOfOrNull(::total) ?: 0.0).coerceAtLeast(0.001)
+    val zoneAlpha = remember(allRows) { zoneAlpha(allRows) }
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            series.forEach { LegendItem(it.color, it.label) }
+        }
+        if (zoneAlpha.size > 1) ZoneLegend(allRows, zoneAlpha, tariff, series.map { it.color })
+        val sel = selected
+        if (sel == null) MutedText(stringResource(R.string.chart_hint))
+        else {
+            MutedText(keys[sel])
+            val unknown = zoneLabel(Aggregation.UNKNOWN_ZONE)
+            series.forEach { s ->
+                val r = s.rows[sel]
+                val zones =
+                    r?.zones
+                        ?.filter { part(it) > 0 }
+                        ?.joinToString("") {
+                            val name = if (it.zone == Aggregation.UNKNOWN_ZONE) unknown else it.zone
+                            " · $name ${kwh(part(it))}"
+                        }
+                MutedText("${s.label}: ${r?.let { kwh(total(it)) } ?: "—"}${zones.orEmpty()}")
+            }
+        }
         Canvas(
             modifier =
-                Modifier.fillMaxWidth().height(160.dp).pointerInput(keys) {
+                Modifier.fillMaxWidth().height(180.dp).pointerInput(keys) {
                     detectTapGestures { pos ->
                         val i = (pos.x / size.width * keys.size).toInt().coerceIn(0, keys.lastIndex)
                         selected = if (selected == i) null else i
@@ -299,19 +343,38 @@ fun PairedBarChart(
                 }
         ) {
             val slot = size.width / keys.size
-            val gap = 3.dp.toPx()
-            val barW = ((slot - gap) / 2).coerceAtLeast(1f)
+            val groupGap = 4.dp.toPx()
+            val barGap = if (series.size > 1) 1.dp.toPx() else 0f
+            val barW =
+                ((slot - groupGap - barGap * (series.size - 1)) / series.size).coerceAtLeast(1f)
             val radius = minOf(3.dp.toPx(), barW / 2)
             keys.indices.forEach { i ->
                 val alpha = if (selected == null || selected == i) 1f else 0.4f
-                listOf(a[i] to colorA, b[i] to colorB).forEachIndexed { j, (v, c) ->
-                    if (v == null || v <= 0) return@forEachIndexed
-                    val h = (v / max * size.height).toFloat()
-                    val x = i * slot + gap / 2 + j * barW
-                    drawPath(
-                        roundedBar(x, size.height - h, barW, h, radius, roundTop = true),
-                        c.copy(alpha = alpha),
-                    )
+                series.forEachIndexed { j, s ->
+                    val r = s.rows[i] ?: return@forEachIndexed
+                    val x = i * slot + groupGap / 2 + j * (barW + barGap)
+                    val parts =
+                        r.zones.ifEmpty {
+                            listOf(ZoneVolume("", 0.0, r.poborPrzed, r.oddaniePrzed))
+                        }
+                    val last = parts.indexOfLast { part(it) > 0 }
+                    var end = 0f
+                    parts.forEachIndexed { k, z ->
+                        val h = (part(z) / max * size.height).toFloat()
+                        if (h <= 0f) return@forEachIndexed
+                        drawPath(
+                            roundedBar(
+                                x,
+                                size.height - end - h,
+                                barW,
+                                h,
+                                if (k == last) radius else 0f,
+                                roundTop = true,
+                            ),
+                            s.color.copy(alpha = alpha * (zoneAlpha[z.zone] ?: 1f)),
+                        )
+                        end += h
+                    }
                 }
             }
             drawLine(

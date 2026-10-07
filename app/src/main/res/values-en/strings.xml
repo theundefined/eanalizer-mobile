@@ -196,7 +196,7 @@
     <string name="nav_bills_desc">Monthly settlement laid out like an invoice</string>
     <string name="nav_storage_desc">Savings and payback of an energy storage</string>
     <string name="nav_monthly_desc">Import and export month by month</string>
-    <string name="nav_yoy_desc">Months of two years side by side</string>
+    <string name="nav_yoy_desc">Months of selected years side by side, split by zone</string>
     <string name="nav_profile_desc">Average day and hour map</string>
     <string name="nav_selfuse_desc">How much PV production you use on site</string>
     <string name="nav_data_desc">Days, gaps in the data</string>
@@ -264,8 +264,8 @@
     <string name="storage_tariffs_hint">• current tariff. With storage a different tariff may be the cheapest.</string>
     <!-- Year over year -->
     <string name="yoy_info">All downloaded data (regardless of the selected period), values before balancing.</string>
-    <string name="yoy_year_a">Year:</string>
-    <string name="yoy_year_b">Compare with:</string>
+    <string name="yoy_years">Years:</string>
+    <string name="yoy_month_kwh">Month [kWh]</string>
     <string name="yoy_change">Change</string>
     <string name="yoy_partial">Months without complete data lower the sums; “—” means no data.</string>
     <!-- Profile -->

@@ -27,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -469,7 +468,8 @@ private fun StorageDetailCard(state: UiState, a: Analysis, sc: StorageScenario) 
 
 @Composable
 fun YearOverYearScreen(state: UiState, onBack: () -> Unit) {
-    val years = state.years
+    // Zone-split years come with the analysis; until then the plain sums from the stored data.
+    val years = state.analysis?.years ?: state.years
     SubScreen(stringResource(R.string.screen_yoy), onBack) {
         item { MutedText(stringResource(R.string.yoy_info)) }
         if (years.isEmpty()) {
@@ -477,21 +477,17 @@ fun YearOverYearScreen(state: UiState, onBack: () -> Unit) {
             return@SubScreen
         }
         item {
-            var yearA by rememberSaveable { mutableIntStateOf(years[0].year) }
-            var yearB by rememberSaveable {
-                mutableIntStateOf(years.getOrNull(1)?.year ?: years[0].year)
-            }
+            var chosen by rememberSaveable { mutableStateOf(years.take(2).map { it.year }) }
             var exportSeries by rememberSaveable { mutableStateOf(false) }
-            val a = years.firstOrNull { it.year == yearA } ?: years[0]
-            val b = years.firstOrNull { it.year == yearB } ?: years.last()
+            // Colour follows the year (newest = first slot), not its position in the selection.
+            val palette = categoricalColors()
+            val shown = years.filter { it.year in chosen }.ifEmpty { years.take(1) }
             fun value(r: AggregateRow?) =
                 r?.let { if (exportSeries) it.oddaniePrzed else it.poborPrzed }
             SectionCard {
-                YearChips(stringResource(R.string.yoy_year_a), years.map { it.year }, yearA) {
-                    yearA = it
-                }
-                YearChips(stringResource(R.string.yoy_year_b), years.map { it.year }, yearB) {
-                    yearB = it
+                YearChips(stringResource(R.string.yoy_years), years.map { it.year }, chosen) { y ->
+                    val next = if (y in chosen) chosen - y else chosen + y
+                    if (next.isNotEmpty()) chosen = next
                 }
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(false, true).forEachIndexed { i, exp ->
@@ -509,42 +505,52 @@ fun YearOverYearScreen(state: UiState, onBack: () -> Unit) {
                     }
                 }
                 val monthNames = (1..12).map { java.time.Month.of(it).shortName() }
-                PairedBarChart(
+                GroupedZoneBarChart(
                     keys = monthNames,
-                    a = a.months.map(::value),
-                    b = b.months.map(::value),
-                    labelA = a.year.toString(),
-                    labelB = b.year.toString(),
-                    format = ::kwh,
+                    series =
+                        shown.map { y ->
+                            BarSeries(
+                                y.year.toString(),
+                                palette[years.indexOf(y) % palette.size],
+                                y.months,
+                            )
+                        },
+                    export = exportSeries,
+                    tariff = state.analysis?.inputs?.tariff,
                 )
-                val w = listOf(0.8f, 1f, 1f, 0.8f)
+                // Two years: relative change of the newer one; more: kWh without the unit to fit.
+                val pair = shown.size == 2
+                val fmt: (Double) -> String = if (shown.size > 2) ({ num(it, 0) }) else ::kwh
+                val w = listOf(0.8f) + shown.map { 1f } + if (pair) listOf(0.8f) else emptyList()
                 TableRow(
                     listOf(
-                        stringResource(R.string.month),
-                        a.year.toString(),
-                        b.year.toString(),
-                        stringResource(R.string.yoy_change),
-                    ),
+                        stringResource(
+                            if (shown.size > 2) R.string.yoy_month_kwh else R.string.month
+                        )
+                    ) +
+                        shown.map { it.year.toString() } +
+                        if (pair) listOf(stringResource(R.string.yoy_change)) else emptyList(),
                     header = true,
                     weights = w,
                 )
                 (0 until 12).forEach { m ->
-                    val va = value(a.months[m])
-                    val vb = value(b.months[m])
-                    if (va == null && vb == null) return@forEach
+                    val vs = shown.map { value(it.months[m]) }
+                    if (vs.all { it == null }) return@forEach
                     TableRow(
-                        listOf(
-                            monthNames[m],
-                            va?.let(::kwh) ?: "—",
-                            vb?.let(::kwh) ?: "—",
-                            change(va, vb),
-                        ),
+                        listOf(monthNames[m]) +
+                            vs.map { it?.let(fmt) ?: "—" } +
+                            if (pair) listOf(change(vs[0], vs[1])) else emptyList(),
                         weights = w,
                     )
                 }
-                val ta = if (exportSeries) a.oddaniePrzed else a.poborPrzed
-                val tb = if (exportSeries) b.oddaniePrzed else b.poborPrzed
-                TableRow(listOf("Σ", kwh(ta), kwh(tb), change(ta, tb)), header = true, weights = w)
+                val totals = shown.map { if (exportSeries) it.oddaniePrzed else it.poborPrzed }
+                TableRow(
+                    listOf("Σ") +
+                        totals.map(fmt) +
+                        if (pair) listOf(change(totals[0], totals[1])) else emptyList(),
+                    header = true,
+                    weights = w,
+                )
                 MutedText(stringResource(R.string.yoy_partial))
             }
         }
@@ -560,7 +566,12 @@ private fun java.time.Month.shortName(): String =
     getDisplayName(java.time.format.TextStyle.SHORT_STANDALONE, java.util.Locale.getDefault())
 
 @Composable
-private fun YearChips(label: String, years: List<Int>, selected: Int, onSelect: (Int) -> Unit) {
+private fun YearChips(
+    label: String,
+    years: List<Int>,
+    selected: List<Int>,
+    onToggle: (Int) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -569,8 +580,8 @@ private fun YearChips(label: String, years: List<Int>, selected: Int, onSelect: 
         MutedText(label)
         years.forEach { y ->
             FilterChip(
-                selected = y == selected,
-                onClick = { onSelect(y) },
+                selected = y in selected,
+                onClick = { onToggle(y) },
                 label = { Text(y.toString()) },
             )
         }
