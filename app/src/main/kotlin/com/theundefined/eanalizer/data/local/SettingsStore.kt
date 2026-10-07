@@ -174,6 +174,16 @@ class SettingsStore(context: Context) {
         get() = plain.getBoolean(KEY_LOGGED_IN, false)
         set(v) = plain.edit().putBoolean(KEY_LOGGED_IN, v).apply()
 
+    /** Epoch millis of the last WebView login, 0 if unknown. */
+    var loginAt: Long
+        get() = plain.getLong(KEY_LOGIN_AT, 0L)
+        set(v) = plain.edit().putLong(KEY_LOGIN_AT, v).apply()
+
+    /** Epoch millis when eBOK last accepted the session cookies, 0 if never. */
+    var sessionCheckedAt: Long
+        get() = plain.getLong(KEY_SESSION_CHECKED_AT, 0L)
+        set(v) = plain.edit().putLong(KEY_SESSION_CHECKED_AT, v).apply()
+
     private companion object {
         const val KEY_EMAIL = "email"
         const val KEY_PASSWORD = "password"
@@ -186,5 +196,7 @@ class SettingsStore(context: Context) {
         const val KEY_REPORT_PREFS = "report_prefs"
         const val KEY_BACKGROUND_SYNC = "background_sync"
         const val KEY_SESSION_NOTIFIED = "session_expiry_notified"
+        const val KEY_LOGIN_AT = "login_at"
+        const val KEY_SESSION_CHECKED_AT = "session_checked_at"
     }
 }

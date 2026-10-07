@@ -32,9 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -43,6 +47,7 @@ import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.data.sync.BackgroundSync
 import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.UiState
+import com.theundefined.eanalizer.ui.dateTime
 
 @Composable
 fun SettingsScreen(
@@ -53,6 +58,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val autofill = LocalAutofillManager.current
     val notificationPermission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             viewModel.setBackgroundSync(true)
@@ -68,6 +74,7 @@ fun SettingsScreen(
                     stringResource(if (state.loggedIn) R.string.logged_in else R.string.logged_out),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                SessionInfo(state)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onLogin) {
                         Text(
@@ -89,7 +96,10 @@ fun SettingsScreen(
                     label = { Text(stringResource(R.string.email)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier.fillMaxWidth().semantics {
+                            contentType = ContentType.Username + ContentType.EmailAddress
+                        },
                 )
                 OutlinedTextField(
                     value = password,
@@ -101,7 +111,8 @@ fun SettingsScreen(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
                 )
                 TextButton(
                     enabled = email.trim() != state.email || password.isNotEmpty(),
@@ -112,6 +123,8 @@ fun SettingsScreen(
                             password,
                             keepPassword = password.isEmpty()
                         )
+                        // Offers saving the e-mail/password in the user's password manager.
+                        if (password.isNotEmpty()) autofill?.commit()
                         password = ""
                     },
                 ) {
@@ -226,5 +239,20 @@ fun SettingsScreen(
                 }
             },
         )
+    }
+}
+
+/** What the app knows about the eBOK session (Enea does not expose its expiry time). */
+@Composable
+private fun SessionInfo(state: UiState) {
+    if (state.loggedIn) {
+        if (state.loginAt > 0)
+            MutedText(stringResource(R.string.session_login_at, dateTime(state.loginAt)))
+        if (state.sessionCheckedAt > 0)
+            MutedText(stringResource(R.string.session_checked_at, dateTime(state.sessionCheckedAt)))
+        state.customerNumber?.let { MutedText(stringResource(R.string.session_customer, it)) }
+        MutedText(stringResource(R.string.session_expiry_info))
+    } else if (state.sessionCheckedAt > 0) {
+        MutedText(stringResource(R.string.session_last_valid, dateTime(state.sessionCheckedAt)))
     }
 }

@@ -75,6 +75,7 @@ class EneaRepository(context: Context) {
             throw SessionExpiredException()
         }
         settings.loggedIn = true
+        settings.sessionCheckedAt = System.currentTimeMillis()
         val info = selectCustomer() ?: throw NoMeterDataException()
         val downloaded = ArrayList<Int>()
         val empty = ArrayList<Int>()
@@ -144,7 +145,10 @@ class EneaRepository(context: Context) {
 
     /** Called by the login WebView once it reached the logged-in eBOK. */
     fun onWebLoginFinished() {
+        val now = System.currentTimeMillis()
         settings.loggedIn = true
+        settings.loginAt = now
+        settings.sessionCheckedAt = now
         settings.sessionExpiryNotified = false
     }
 
@@ -152,6 +156,8 @@ class EneaRepository(context: Context) {
     fun logout() {
         cookieJar.clear()
         settings.loggedIn = false
+        settings.loginAt = 0L
+        settings.sessionCheckedAt = 0L
     }
 
     /** Removes downloaded data, session, credentials and customer choice. */

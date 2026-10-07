@@ -173,6 +173,11 @@
     <string name="logged_in">Zalogowano do eBOK</string>
     <string name="logged_out">Nie zalogowano</string>
     <string name="logout">Wyloguj</string>
+    <string name="session_login_at">Zalogowano: %1$s</string>
+    <string name="session_checked_at">Sesja ostatnio potwierdzona przez eBOK: %1$s</string>
+    <string name="session_customer">Klient: %1$s</string>
+    <string name="session_expiry_info">Enea nie podaje czasu ważności sesji — jest sprawdzana przy każdym pobieraniu danych.</string>
+    <string name="session_last_valid">Sesja była ostatnio ważna: %1$s</string>
     <string name="customer">Klient (numer)</string>
     <string name="choose_customer">Wybierz klienta</string>
     <string name="choose_customer_info">Kilku klientów na koncie ma godzinowe dane z licznika. Wybierz, czyje dane pobrać.</string>

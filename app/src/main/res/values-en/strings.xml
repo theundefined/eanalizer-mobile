@@ -171,6 +171,11 @@
     <string name="logged_in">Logged in to eBOK</string>
     <string name="logged_out">Not logged in</string>
     <string name="logout">Log out</string>
+    <string name="session_login_at">Logged in: %1$s</string>
+    <string name="session_checked_at">Session last confirmed by eBOK: %1$s</string>
+    <string name="session_customer">Customer: %1$s</string>
+    <string name="session_expiry_info">Enea doesn\'t expose the session expiry — it is checked on every data download.</string>
+    <string name="session_last_valid">Session last valid: %1$s</string>
     <string name="customer">Customer (number)</string>
     <string name="choose_customer">Choose customer</string>
     <string name="choose_customer_info">Several customers on the account have hourly meter data. Choose whose data to download.</string>

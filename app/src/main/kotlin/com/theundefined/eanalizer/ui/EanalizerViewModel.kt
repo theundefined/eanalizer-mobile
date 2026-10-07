@@ -83,6 +83,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         MutableStateFlow(
             UiState(
                 loggedIn = settings.loggedIn,
+                loginAt = settings.loginAt,
+                sessionCheckedAt = settings.sessionCheckedAt,
                 lastSync = settings.lastSync,
                 prefs = settings.prefs,
                 tariffs = settings.tariffs,
@@ -499,6 +501,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     _uiState.update {
                         it.copy(
                             loggedIn = true,
+                            sessionCheckedAt = settings.sessionCheckedAt,
                             lastSync = settings.lastSync,
                             customers = settings.customers,
                             customerNumber = settings.customerNumber,
@@ -531,7 +534,13 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun onWebLoginFinished() {
         repo.onWebLoginFinished()
-        _uiState.update { it.copy(loggedIn = true) }
+        _uiState.update {
+            it.copy(
+                loggedIn = true,
+                loginAt = settings.loginAt,
+                sessionCheckedAt = settings.sessionCheckedAt,
+            )
+        }
         sync()
     }
 
@@ -577,7 +586,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun logout() {
         repo.logout()
-        _uiState.update { it.copy(loggedIn = false) }
+        _uiState.update { it.copy(loggedIn = false, loginAt = 0L, sessionCheckedAt = 0L) }
     }
 
     fun clearAll() {
@@ -586,6 +595,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update {
             it.copy(
                 loggedIn = false,
+                loginAt = 0L,
+                sessionCheckedAt = 0L,
                 lastSync = 0L,
                 customers = emptyList(),
                 customerNumber = null,

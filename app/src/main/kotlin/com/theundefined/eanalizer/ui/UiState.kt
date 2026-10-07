@@ -131,6 +131,10 @@ data class UiState(
     val syncing: Boolean = false,
     val syncYear: Int? = null,
     val loggedIn: Boolean = false,
+    /** Last WebView login (epoch ms), 0 = unknown. */
+    val loginAt: Long = 0L,
+    /** Last time eBOK accepted the session (epoch ms), 0 = never. */
+    val sessionCheckedAt: Long = 0L,
     val lastSync: Long = 0L,
     val prefs: AnalysisPrefs = AnalysisPrefs(),
     val tariffs: TariffTable = TariffTable.default(),
