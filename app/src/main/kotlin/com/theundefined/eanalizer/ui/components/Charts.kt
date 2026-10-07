@@ -33,7 +33,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.domain.AggregateRow
+import com.theundefined.eanalizer.domain.Aggregation
 import com.theundefined.eanalizer.domain.ZonePrice
+import com.theundefined.eanalizer.domain.ZoneVolume
 import com.theundefined.eanalizer.ui.kwh
 import com.theundefined.eanalizer.ui.zl
 
@@ -44,13 +46,16 @@ internal fun seriesColors(): Pair<Color, Color> =
     else Color(0xFF2A78D6) to Color(0xFFEB6834)
 
 /**
- * Mirrored bar chart: consumption (before balancing) above the zero line, export below. Tapping a
- * bar shows its values above the chart; first/last keys are printed under it.
+ * Mirrored bar chart: consumption (before balancing) above the zero line, export below. Rows split
+ * by tariff zone ([AggregateRow.zones]) are stacked, the cheapest zone at the zero line and darker
+ * shades for pricier zones; [tariff] names the tariff in the zone legend. Tapping a bar shows its
+ * values above the chart; first/last keys are printed under it.
  */
 @Composable
 fun ImportExportChart(
     rows: List<AggregateRow>,
     modifier: Modifier = Modifier,
+    tariff: String? = null,
     underBars: (@Composable () -> Unit)? = null,
 ) {
     if (rows.isEmpty()) return
@@ -60,12 +65,27 @@ fun ImportExportChart(
     val maxUp = rows.maxOf { it.poborPrzed }.coerceAtLeast(0.001)
     val maxDown = rows.maxOf { it.oddaniePrzed }
     val total = maxUp + maxDown
+    val zoneAlpha =
+        remember(rows) {
+            val zones =
+                rows
+                    .flatMap { it.zones }
+                    .distinctBy { it.zone }
+                    .sortedBy { it.price }
+                    .map { it.zone }
+            zones
+                .mapIndexed { i, z ->
+                    z to if (zones.size < 2) 1f else 0.4f + 0.6f * i / (zones.size - 1)
+                }
+                .toMap()
+        }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             LegendItem(importColor, stringResource(R.string.legend_consumption))
             LegendItem(exportColor, stringResource(R.string.legend_export))
         }
+        if (zoneAlpha.size > 1) ZoneLegend(rows, zoneAlpha, tariff, importColor, exportColor)
         val sel = selected?.let { rows.getOrNull(it) }
         MutedText(
             if (sel == null) stringResource(R.string.chart_hint)
@@ -77,6 +97,16 @@ fun ImportExportChart(
                     kwh(sel.oddaniePrzed),
                 )
         )
+        sel?.zones?.forEach { z ->
+            MutedText(
+                stringResource(
+                    R.string.chart_value,
+                    zoneLabel(z.zone),
+                    kwh(z.poborPrzed),
+                    kwh(z.oddaniePrzed),
+                )
+            )
+        }
         Canvas(
             modifier =
                 Modifier.fillMaxWidth().height(180.dp).pointerInput(rows) {
@@ -94,19 +124,45 @@ fun ImportExportChart(
             rows.forEachIndexed { i, r ->
                 val x = i * slot + gap / 2
                 val alpha = if (selected == null || selected == i) 1f else 0.4f
-                val up = (r.poborPrzed / total * size.height).toFloat()
-                if (up > 0f) {
-                    drawPath(
-                        roundedBar(x, zeroY - up, barW, up, radius, roundTop = true),
-                        importColor.copy(alpha = alpha),
-                    )
-                }
-                val down = (r.oddaniePrzed / total * size.height).toFloat()
-                if (down > 0f) {
-                    drawPath(
-                        roundedBar(x, zeroY, barW, down, radius, roundTop = false),
-                        exportColor.copy(alpha = alpha),
-                    )
+                // Segments from the zero line outwards; only the outermost one is rounded.
+                val parts =
+                    r.zones.ifEmpty { listOf(ZoneVolume("", 0.0, r.poborPrzed, r.oddaniePrzed)) }
+                var upEnd = 0f
+                var downEnd = 0f
+                val lastUp = parts.indexOfLast { it.poborPrzed > 0 }
+                val lastDown = parts.indexOfLast { it.oddaniePrzed > 0 }
+                parts.forEachIndexed { j, z ->
+                    val shade = alpha * (zoneAlpha[z.zone] ?: 1f)
+                    val up = (z.poborPrzed / total * size.height).toFloat()
+                    if (up > 0f) {
+                        drawPath(
+                            roundedBar(
+                                x,
+                                zeroY - upEnd - up,
+                                barW,
+                                up,
+                                if (j == lastUp) radius else 0f,
+                                roundTop = true,
+                            ),
+                            importColor.copy(alpha = shade),
+                        )
+                        upEnd += up
+                    }
+                    val down = (z.oddaniePrzed / total * size.height).toFloat()
+                    if (down > 0f) {
+                        drawPath(
+                            roundedBar(
+                                x,
+                                zeroY + downEnd,
+                                barW,
+                                down,
+                                if (j == lastDown) radius else 0f,
+                                roundTop = false,
+                            ),
+                            exportColor.copy(alpha = shade),
+                        )
+                        downEnd += down
+                    }
                 }
             }
             drawLine(gridColor, Offset(0f, zeroY), Offset(size.width, zeroY), 1.dp.toPx())
@@ -145,6 +201,49 @@ private fun roundedBar(
             )
         )
     }
+}
+
+/** Tariff zones of a split [ImportExportChart]: both series' shades, name and price per kWh. */
+@Composable
+private fun ZoneLegend(
+    rows: List<AggregateRow>,
+    zoneAlpha: Map<String, Float>,
+    tariff: String?,
+    importColor: Color,
+    exportColor: Color,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (tariff != null) MutedText(stringResource(R.string.chart_zones, tariff))
+        rows
+            .flatMap { it.zones }
+            .distinctBy { it.zone }
+            .sortedBy { it.price }
+            .forEach { z ->
+                val a = zoneAlpha[z.zone] ?: 1f
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Swatch(importColor.copy(alpha = a))
+                        Swatch(exportColor.copy(alpha = a))
+                    }
+                    MutedText(
+                        if (z.zone == Aggregation.UNKNOWN_ZONE) zoneLabel(z.zone)
+                        else stringResource(R.string.chart_zone_item, z.zone, zl(z.price))
+                    )
+                }
+            }
+    }
+}
+
+@Composable
+private fun zoneLabel(zone: String): String =
+    if (zone == Aggregation.UNKNOWN_ZONE) stringResource(R.string.chart_zone_unknown) else zone
+
+@Composable
+private fun Swatch(color: Color) {
+    Box(Modifier.size(10.dp).background(color, RoundedCornerShape(2.dp)))
 }
 
 @Composable

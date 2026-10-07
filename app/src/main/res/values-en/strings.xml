@@ -136,6 +136,9 @@
     <string name="legend_export">Export</string>
     <string name="chart_hint">Tap a bar to see its values</string>
     <string name="chart_value">%1$s: import %2$s, export %3$s</string>
+    <string name="chart_zones">%1$s tariff zones (darker colour = pricier zone):</string>
+    <string name="chart_zone_item">%1$s, %2$s/kWh</string>
+    <string name="chart_zone_unknown">outside tariff zones</string>
     <string name="before_after_hint">Values before hourly balancing; in brackets — after balancing.</string>
     <string name="nb_monthly">Net-billing settlement</string>
     <string name="nb_new_deposit">New deposit</string>

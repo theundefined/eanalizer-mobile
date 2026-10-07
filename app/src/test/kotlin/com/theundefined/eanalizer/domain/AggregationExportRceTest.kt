@@ -34,6 +34,24 @@ class AggregationExportRceTest {
     }
 
     @Test
+    fun dailySplitByTariffZone() {
+        // 2024-05-01 is a holiday (weekend zone of G12w all day), 2024-05-02 a workday.
+        val data =
+            listOf(
+                rec(at(2024, 5, 1, 10), 1.0, 0.5, 1.0, 0.0),
+                rec(at(2024, 5, 2, 3), 2.0, 0.0, 2.0, 0.0),
+                rec(at(2024, 5, 2, 10), 4.0, 1.0, 3.0, 0.0),
+            )
+        val table = TariffTable.default()
+        val d = Aggregation.daily(data, table, "G12w")
+        assertEquals(listOf(ZoneVolume("pozaszczytowa", 0.426195 + 0.153381, 1.0, 0.5)), d[0].zones)
+        assertEquals(listOf("pozaszczytowa", "szczytowa"), d[1].zones.map { it.zone })
+        assertEquals(listOf(2.0, 4.0), d[1].zones.map { it.poborPrzed })
+        // A single-zone tariff is not split.
+        assertTrue(Aggregation.daily(data, table, "G11").all { it.zones.isEmpty() })
+    }
+
+    @Test
     fun exportSimulation() {
         val rows = listOf(SimulationRow(at(2024, 5, 1, 4), 1.0, 0.0, 0.12345, 2.5, 1234.5678))
         assertEquals(

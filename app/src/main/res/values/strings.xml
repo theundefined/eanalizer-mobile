@@ -138,6 +138,9 @@
     <string name="legend_export">Oddanie</string>
     <string name="chart_hint">Dotknij słupka, aby zobaczyć wartości</string>
     <string name="chart_value">%1$s: pobór %2$s, oddanie %3$s</string>
+    <string name="chart_zones">Strefy taryfy %1$s (ciemniejszy kolor = droższa strefa):</string>
+    <string name="chart_zone_item">%1$s, %2$s/kWh</string>
+    <string name="chart_zone_unknown">poza strefami taryfy</string>
     <string name="before_after_hint">Wartości przed bilansowaniem godzinowym; w nawiasie — po bilansowaniu.</string>
     <string name="nb_monthly">Rozliczenie net-billing</string>
     <string name="nb_new_deposit">Nowy depozyt</string>

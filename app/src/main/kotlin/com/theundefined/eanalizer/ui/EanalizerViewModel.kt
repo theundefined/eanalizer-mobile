@@ -271,8 +271,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     Periods.findMissingHours(recs, from, to).filterNot {
                         Periods.isProbableDstSpringGap(it)
                     },
-                daily = Aggregation.daily(recs),
-                monthly = Aggregation.monthly(recs),
+                daily = Aggregation.daily(recs, tariffs, tariff),
+                monthly = Aggregation.monthly(recs, tariffs, tariff),
                 missingRcem = nb?.missingRcemMonths ?: emptyList(),
                 pricesUnavailable = pricesUnavailable,
                 dayProfile = Insights.dayProfile(recs),

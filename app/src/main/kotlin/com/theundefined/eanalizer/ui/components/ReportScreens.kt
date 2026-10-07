@@ -134,7 +134,7 @@ fun MonthlyScreen(state: UiState, onBack: () -> Unit) {
     SubScreen(stringResource(R.string.screen_monthly), onBack) {
         if (a == null) return@SubScreen
         item { PeriodInfo(a) }
-        item { SectionCard { ImportExportChart(a.monthly) } }
+        item { SectionCard { ImportExportChart(a.monthly, tariff = a.inputs.tariff) } }
         item { AggregateTable(a.monthly, stringResource(R.string.month)) }
         val nb = a.netBilling
         if (nb != null) {
@@ -177,7 +177,7 @@ fun DataScreen(state: UiState, onBack: () -> Unit) {
         item { MutedText(stringResource(R.string.data_files, state.dataYears.joinToString(", "))) }
         if (a == null) return@SubScreen
         item { PeriodInfo(a) }
-        item { SectionCard { ImportExportChart(a.daily) } }
+        item { SectionCard { ImportExportChart(a.daily, tariff = a.inputs.tariff) } }
         item {
             SectionCard(title = stringResource(R.string.missing_hours_list, a.missingHours.size)) {
                 if (a.missingHours.isEmpty()) MutedText(stringResource(R.string.no_missing_hours))
