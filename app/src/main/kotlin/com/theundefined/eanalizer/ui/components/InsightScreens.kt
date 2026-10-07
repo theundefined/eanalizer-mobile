@@ -133,7 +133,9 @@ fun BillsScreen(state: UiState, onBack: () -> Unit) {
 fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> Unit) {
     val a = state.analysis
     val rp = state.reportPrefs
-    LaunchedEffect(a, rp.storageCapacities) { if (a != null) viewModel.loadStorage() }
+    LaunchedEffect(a, rp.storageCapacities, rp.storageSelected, rp.storageSim()) {
+        if (a != null) viewModel.loadStorage()
+    }
     SubScreen(stringResource(R.string.screen_storage), onBack) {
         item { MutedText(stringResource(R.string.storage_info)) }
         if (a == null) {
@@ -141,7 +143,7 @@ fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
             return@SubScreen
         }
         item { PeriodInfo(a) }
-        item { StorageParamsCard(state, viewModel) }
+        item { StorageParamsCard(rp, viewModel) }
         item { StorageFinanceCard(state, viewModel) }
         val s = state.storage
         if (s.loading || s.forAnalysis !== a || s.costs.isEmpty()) {
@@ -160,13 +162,12 @@ fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
         val sized = scenarios.filter { it.capacity > 0 }
         val best = sized.filter { it.netGain > 0 }.maxByOrNull { it.netGain }
         item {
-            var picked by rememberSaveable(a.from, a.to) { mutableStateOf<Double?>(null) }
+            val pick = { c: Double -> viewModel.updateReportPrefs { it.copy(storageSelected = c) } }
             val selected =
-                sized.firstOrNull { it.capacity == picked }
+                sized.firstOrNull { it.capacity == rp.storageSelected }
                     ?: best
-                    ?: sized.firstOrNull { it.capacity == a.inputs.prefs.capacity }
                     ?: sized.firstOrNull()
-            LaunchedEffect(selected?.capacity, s.forAnalysis) {
+            LaunchedEffect(selected?.capacity, s.forAnalysis, s.sim) {
                 selected?.let { viewModel.loadStorageDetail(it.capacity) }
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -187,7 +188,7 @@ fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
                         },
                         hint = stringResource(R.string.storage_gain_hint),
                         selected = sized.indexOf(selected).takeIf { it >= 0 },
-                        onSelect = { picked = sized[it].capacity },
+                        onSelect = { pick(sized[it].capacity) },
                     )
                 }
                 SectionCard {
@@ -203,12 +204,9 @@ fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
                         weights = w,
                     )
                     scenarios.forEach { sc ->
-                        val marks = buildString {
-                            if (sc.capacity == a.inputs.prefs.capacity) append(" •")
-                            if (sc == best) append(" ★")
-                        }
+                        val marks = if (sc == best) " ★" else ""
                         Box(
-                            Modifier.clickable(enabled = sc.capacity > 0) { picked = sc.capacity }
+                            Modifier.clickable(enabled = sc.capacity > 0) { pick(sc.capacity) }
                                 .then(
                                     if (sc == selected)
                                         Modifier.background(
@@ -241,36 +239,36 @@ fun StorageScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
     }
 }
 
-/** Physical storage parameters; they're part of the analysis settings. */
+/** Physical storage parameters (simulation on this screen only). */
 @Composable
-private fun StorageParamsCard(state: UiState, viewModel: EanalizerViewModel) {
-    val prefs = state.prefs
+private fun StorageParamsCard(rp: ReportPrefs, viewModel: EanalizerViewModel) {
+    fun update(t: (ReportPrefs) -> ReportPrefs) = viewModel.updateReportPrefs(t)
     SectionCard(title = stringResource(R.string.storage_params)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DecimalField(
                 label = stringResource(R.string.storage_power),
-                value = prefs.powerKw,
+                value = rp.storagePowerKw,
                 modifier = Modifier.weight(1f),
                 valid = { it >= 0 },
             ) { v ->
-                viewModel.updatePrefs { it.copy(powerKw = v) }
+                update { it.copy(storagePowerKw = v) }
             }
             DecimalField(
                 label = stringResource(R.string.storage_usable),
-                value = Math.round(prefs.usableFraction * 1000) / 10.0,
+                value = Math.round(rp.storageUsableFraction * 1000) / 10.0,
                 modifier = Modifier.weight(1f),
                 valid = { it > 0 && it <= 100 },
             ) { v ->
-                viewModel.updatePrefs { it.copy(usableFraction = v / 100) }
+                update { it.copy(storageUsableFraction = v / 100) }
             }
         }
         DecimalField(
             label = stringResource(R.string.storage_efficiency),
-            value = Math.round(prefs.efficiency * 1000) / 10.0,
+            value = Math.round(rp.storageEfficiency * 1000) / 10.0,
             modifier = Modifier.fillMaxWidth(),
             valid = { it > 0 && it <= 100 },
         ) { v ->
-            viewModel.updatePrefs { it.copy(efficiency = v / 100) }
+            update { it.copy(storageEfficiency = v / 100) }
         }
         MutedText(stringResource(R.string.storage_params_hint))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -279,11 +277,10 @@ private fun StorageParamsCard(state: UiState, viewModel: EanalizerViewModel) {
                 MutedText(stringResource(R.string.storage_grid_charging_hint))
             }
             Switch(
-                checked = prefs.gridCharging,
-                onCheckedChange = { on -> viewModel.updatePrefs { it.copy(gridCharging = on) } },
+                checked = rp.storageGridCharging,
+                onCheckedChange = { on -> update { it.copy(storageGridCharging = on) } },
             )
         }
-        MutedText(stringResource(R.string.storage_params_shared))
     }
 }
 

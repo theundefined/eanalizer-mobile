@@ -1,7 +1,9 @@
 package com.theundefined.eanalizer.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -91,24 +93,6 @@ fun ParamsCard(state: UiState, onChange: ((AnalysisPrefs) -> AnalysisPrefs) -> U
         ChipRow(state.tariffs.tariffNames, selectedTariff, { it }) { t ->
             onChange { it.copy(tariff = t) }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DecimalField(
-                label = stringResource(R.string.storage_capacity),
-                value = prefs.capacity,
-                modifier = Modifier.weight(1f),
-                valid = { it >= 0 },
-            ) { v ->
-                onChange { it.copy(capacity = v) }
-            }
-            DecimalField(
-                label = stringResource(R.string.storage_efficiency),
-                value = Math.round(prefs.efficiency * 1000) / 10.0,
-                modifier = Modifier.weight(1f),
-                valid = { it > 0 && it <= 100 },
-            ) { v ->
-                onChange { it.copy(efficiency = v / 100) }
-            }
-        }
         MutedText(stringResource(R.string.settlement))
         Segmented(
             SettlementMode.entries,
@@ -153,7 +137,7 @@ fun ParamsCard(state: UiState, onChange: ((AnalysisPrefs) -> AnalysisPrefs) -> U
 }
 
 @Composable
-fun SummaryCard(state: UiState, onRetryPrices: () -> Unit) {
+fun SummaryCard(state: UiState, onRetryPrices: () -> Unit, onOpenStorage: () -> Unit) {
     val a = state.analysis
     if (a == null) {
         SectionCard {
@@ -218,11 +202,10 @@ fun SummaryCard(state: UiState, onRetryPrices: () -> Unit) {
         HorizontalDivider(Modifier.padding(vertical = 4.dp))
         ValueRow(stringResource(R.string.consumption_before), kwh(r.totalPoborPrzed))
         ValueRow(stringResource(R.string.export_before), kwh(r.totalOddaniePrzed))
-        if (state.prefs.capacity > 0) {
-            ValueRow(stringResource(R.string.storage_savings), kwh(r.savings))
-        }
         r.unusedCredit?.let { ValueRow(stringResource(R.string.unused_credit), kwh(it)) }
-        ValueRow(stringResource(R.string.optimal_capacity), kwh(a.optimalCapacity))
+        Box(Modifier.clickable(onClick = onOpenStorage)) {
+            ValueRow(stringResource(R.string.optimal_capacity), kwh(a.optimalCapacity) + " ›")
+        }
         ValueRow(
             stringResource(R.string.surplus_days),
             "${a.trends.surplusDays} / ${a.trends.totalDays} (${num(a.trends.percent, 0)}%)",

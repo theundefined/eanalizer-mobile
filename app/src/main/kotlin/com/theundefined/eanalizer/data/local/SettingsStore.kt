@@ -14,6 +14,11 @@ import com.theundefined.eanalizer.domain.TariffTable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /** How exported energy is settled. */
 @Serializable
@@ -32,29 +37,36 @@ enum class SettlementMode {
 data class AnalysisPrefs(
     val period: Period = Period.LAST_365_DAYS,
     val tariff: String = "G11",
-    val capacity: Double = 0.0,
-    val efficiency: Double = 0.9,
     val mode: SettlementMode = SettlementMode.NONE,
     val netMeteringRatio: Double = 0.8,
     val valuation: NetBillingValuation = NetBillingValuation.RCEM,
     /** [Period.CUSTOM] range, ISO dates. */
     val customFrom: String? = null,
     val customTo: String? = null,
-    /** Usable share of the storage capacity (depth of discharge). */
-    val usableFraction: Double = 1.0,
-    /** Storage charge/discharge power limit, kW (0 = no limit). */
-    val powerKw: Double = 0.0,
-    /** Charge the storage from the grid in the cheapest zone. */
-    val gridCharging: Boolean = false,
-) {
-    fun storageOptions() = StorageOptions(usableFraction, powerKw, gridCharging)
-}
+)
 
-/** Inputs of the reports that don't change the main analysis (no recomputation). */
+/** Physical parameters of the simulated storage. */
+data class StorageSim(val efficiency: Double, val options: StorageOptions)
+
+/**
+ * Inputs of the reports that don't change the main analysis (no recomputation). The main analysis
+ * always runs without storage: the meter data already includes an existing one, so any storage is a
+ * what-if simulated only on the storage screen.
+ */
 @Serializable
 data class ReportPrefs(
     /** Annual PV production from the inverter, kWh (0 = unknown). */
     val pvAnnualKwh: Double = 0.0,
+    /** Storage size selected on the storage screen, kWh (0 = the most profitable one). */
+    val storageSelected: Double = 0.0,
+    /** Full-cycle (round-trip) storage efficiency. */
+    val storageEfficiency: Double = 0.9,
+    /** Usable share of the storage capacity (depth of discharge). */
+    val storageUsableFraction: Double = 1.0,
+    /** Storage charge/discharge power limit, kW (0 = no limit). */
+    val storagePowerKw: Double = 0.0,
+    /** Charge the storage from the grid in the cheapest zone. */
+    val storageGridCharging: Boolean = false,
     /** Storage price for the payback estimate, zł per kWh of capacity. */
     val storagePricePerKwh: Double = 2500.0,
     /** Storage cost independent of the size (hybrid inverter, mounting), zł. */
@@ -75,6 +87,12 @@ data class ReportPrefs(
     /** Dynamic tariff: seller margin added to RCE, net zł/kWh. */
     val dynamicMargin: Double = 0.10,
 ) {
+    fun storageSim() =
+        StorageSim(
+            storageEfficiency,
+            StorageOptions(storageUsableFraction, storagePowerKw, storageGridCharging),
+        )
+
     fun storageFinance() =
         StorageFinance(
             pricePerKwh = storagePricePerKwh,
@@ -105,6 +123,10 @@ class SettingsStore(context: Context) {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
+    }
+
+    init {
+        migrateStorageParams()
     }
 
     var email: String
@@ -184,7 +206,34 @@ class SettingsStore(context: Context) {
         get() = plain.getLong(KEY_SESSION_CHECKED_AT, 0L)
         set(v) = plain.edit().putLong(KEY_SESSION_CHECKED_AT, v).apply()
 
+    /**
+     * Up to v0.1.14 the storage parameters were part of [AnalysisPrefs] and applied to the main
+     * analysis. Moves them to [ReportPrefs] (the capacity becomes the selected storage size) and
+     * drops them from the analysis prefs, so this runs once.
+     */
+    private fun migrateStorageParams() {
+        val raw = plain.getString(KEY_PREFS, null) ?: return
+        val obj = runCatching { json.parseToJsonElement(raw).jsonObject }.getOrNull() ?: return
+        val legacy = LEGACY_STORAGE_KEYS.filter { it in obj }
+        if (legacy.isEmpty()) return
+        fun num(key: String) = obj[key]?.jsonPrimitive?.doubleOrNull
+        val rp = reportPrefs
+        reportPrefs =
+            rp.copy(
+                storageSelected = num("capacity") ?: rp.storageSelected,
+                storageEfficiency = num("efficiency") ?: rp.storageEfficiency,
+                storageUsableFraction = num("usableFraction") ?: rp.storageUsableFraction,
+                storagePowerKw = num("powerKw") ?: rp.storagePowerKw,
+                storageGridCharging =
+                    obj["gridCharging"]?.jsonPrimitive?.booleanOrNull ?: rp.storageGridCharging,
+            )
+        plain.edit().putString(KEY_PREFS, JsonObject(obj - legacy.toSet()).toString()).apply()
+    }
+
     private companion object {
+        val LEGACY_STORAGE_KEYS =
+            listOf("capacity", "efficiency", "usableFraction", "powerKw", "gridCharging")
+
         const val KEY_EMAIL = "email"
         const val KEY_PASSWORD = "password"
         const val KEY_PREFS = "analysis_prefs"

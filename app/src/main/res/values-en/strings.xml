@@ -56,7 +56,6 @@
     <string name="period_custom">Date range…</string>
     <string name="period_custom_title">Analysis range</string>
     <string name="tariff">Tariff</string>
-    <string name="storage_capacity">Energy storage [kWh]</string>
     <string name="storage_efficiency">Storage efficiency [%]</string>
     <string name="settlement">Exported energy settlement</string>
     <string name="settlement_none">None</string>
@@ -74,7 +73,6 @@
     <string name="fixed_fees">Fixed fees (%1$d mo.)</string>
     <string name="consumption_before">Consumption before balancing</string>
     <string name="export_before">Export before balancing</string>
-    <string name="storage_savings">Energy covered by storage</string>
     <string name="unused_credit">Unused net-metering credit</string>
     <string name="zone">Zone</string>
     <string name="zone_price">Price</string>
@@ -116,7 +114,7 @@
     <string name="share_title">Share CSV file</string>
 
     <!-- Compare -->
-    <string name="compare_info">Cost in the selected period with the current storage and settlement settings.</string>
+    <string name="compare_info">Cost in the selected period with the current settlement settings, without simulated storage. The tariff comparison with storage is in the details on the storage screen.</string>
     <string name="cheapest">Cheapest</string>
     <string name="difference">+%1$s</string>
 
@@ -212,7 +210,7 @@
     <string name="settings_analysis">Analysis</string>
     <string name="recalculate">Recalculate</string>
     <!-- Bills -->
-    <string name="bills_info">Settlement of each month in the selected tariff with the current storage and settlement settings. Laid out like an invoice — not a copy of it.</string>
+    <string name="bills_info">Settlement of each month in the selected tariff with the current settlement settings, without simulated storage. Laid out like an invoice — not a copy of it.</string>
     <string name="bills_net_metering">In net-metering exported energy is settled over the whole period, not monthly — the bills don\'t include that credit.</string>
     <string name="bills_energy">Energy</string>
     <string name="bills_distribution">Distribution</string>
@@ -221,7 +219,7 @@
     <string name="bills_fixed">Fixed fees</string>
     <string name="bills_total">To pay</string>
     <!-- Storage -->
-    <string name="storage_info">Period cost with storage of different sizes (same tariff and settlement). Savings scaled to a year; the gain over the horizon accounts for degradation, price growth and discounting.</string>
+    <string name="storage_info">Simulation of storage of different sizes (same tariff and settlement). Other reports run without storage — the meter data already includes an existing one. Savings scaled to a year; the gain over the horizon accounts for degradation, price growth and discounting.</string>
     <string name="storage_price">Storage price [zł/kWh of capacity]</string>
     <string name="storage_price_hint">Price per kWh of capacity (e.g. 2500 zł/kWh) plus a fixed cost independent of the size (hybrid inverter, installation).</string>
     <string name="storage_capacity_col">Capacity</string>
@@ -229,14 +227,13 @@
     <string name="storage_savings_col">Savings/year</string>
     <string name="storage_payback_col">Payback</string>
     <string name="years">%1$s years</string>
-    <string name="storage_legend">• current setting, ★ highest gain after %1$d years. For 0 kWh the period cost is shown. Tap a row for details.</string>
+    <string name="storage_legend">★ highest gain after %1$d years. For 0 kWh the period cost is shown. Tap a row for details.</string>
     <string name="storage_params">Storage parameters</string>
     <string name="storage_power">Charge/discharge power [kW]</string>
     <string name="storage_usable">Usable capacity [%]</string>
     <string name="storage_params_hint">Power 0 = no limit. Usable capacity is the depth of discharge (DoD). Efficiency is the full-cycle (round-trip) efficiency.</string>
     <string name="storage_grid_charging">Charge from the grid in the cheaper zone</string>
     <string name="storage_grid_charging_hint">In the cheapest zone of a multi-zone tariff the storage takes from the grid what was missing in the more expensive zones yesterday, and isn\'t discharged in the cheaper zone.</string>
-    <string name="storage_params_shared">These parameters also apply to the main analysis and the tariff comparison.</string>
     <string name="storage_finance">Costs and assumptions</string>
     <string name="storage_fixed_cost">Fixed cost [zł]</string>
     <string name="storage_subsidy_percent">Subsidy [% of cost]</string>

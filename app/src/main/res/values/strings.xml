@@ -58,7 +58,6 @@
     <string name="period_custom">Zakres dat…</string>
     <string name="period_custom_title">Zakres analizy</string>
     <string name="tariff">Taryfa</string>
-    <string name="storage_capacity">Magazyn energii [kWh]</string>
     <string name="storage_efficiency">Sprawność magazynu [%]</string>
     <string name="settlement">Rozliczenie oddanej energii</string>
     <string name="settlement_none">Brak</string>
@@ -76,7 +75,6 @@
     <string name="fixed_fees">Opłaty stałe (%1$d mies.)</string>
     <string name="consumption_before">Pobór przed bilansowaniem</string>
     <string name="export_before">Oddanie przed bilansowaniem</string>
-    <string name="storage_savings">Energia pokryta z magazynu</string>
     <string name="unused_credit">Niewykorzystany kredyt net-metering</string>
     <string name="zone">Strefa</string>
     <string name="zone_price">Cena</string>
@@ -118,7 +116,7 @@
     <string name="share_title">Udostępnij plik CSV</string>
 
     <!-- Compare -->
-    <string name="compare_info">Koszt w wybranym okresie przy bieżących ustawieniach magazynu i rozliczenia.</string>
+    <string name="compare_info">Koszt w wybranym okresie przy bieżących ustawieniach rozliczenia, bez symulowanego magazynu. Porównanie taryf z magazynem jest w szczegółach na ekranie magazynu.</string>
     <string name="cheapest">Najtańsza</string>
     <string name="difference">+%1$s</string>
 
@@ -214,7 +212,7 @@
     <string name="settings_analysis">Analiza</string>
     <string name="recalculate">Przelicz</string>
     <!-- Bills -->
-    <string name="bills_info">Rozliczenie każdego miesiąca w wybranej taryfie, przy bieżących ustawieniach magazynu i rozliczenia. Układ zbliżony do faktury — nie jest jej kopią.</string>
+    <string name="bills_info">Rozliczenie każdego miesiąca w wybranej taryfie, przy bieżących ustawieniach rozliczenia, bez symulowanego magazynu. Układ zbliżony do faktury — nie jest jej kopią.</string>
     <string name="bills_net_metering">W net-meteringu energia oddana jest rozliczana w całym okresie, nie co miesiąc — rachunki nie uwzględniają tej ulgi.</string>
     <string name="bills_energy">Energia</string>
     <string name="bills_distribution">Dystrybucja</string>
@@ -223,7 +221,7 @@
     <string name="bills_fixed">Opłaty stałe</string>
     <string name="bills_total">Do zapłaty</string>
     <!-- Storage -->
-    <string name="storage_info">Koszt okresu z magazynem różnej pojemności (ta sama taryfa i rozliczenie). Oszczędności przeliczone na rok, zysk w horyzoncie uwzględnia degradację, wzrost cen i dyskonto.</string>
+    <string name="storage_info">Symulacja magazynu różnej pojemności (ta sama taryfa i rozliczenie). Pozostałe raporty liczą bez magazynu — dane z licznika już uwzględniają ewentualny istniejący magazyn. Oszczędności przeliczone na rok, zysk w horyzoncie uwzględnia degradację, wzrost cen i dyskonto.</string>
     <string name="storage_price">Cena magazynu [zł/kWh pojemności]</string>
     <string name="storage_price_hint">Cena za kWh pojemności (np. 2500 zł/kWh) plus koszt stały niezależny od pojemności (falownik hybrydowy, montaż).</string>
     <string name="storage_capacity_col">Pojemność</string>
@@ -231,14 +229,13 @@
     <string name="storage_savings_col">Oszczędność/rok</string>
     <string name="storage_payback_col">Zwrot</string>
     <string name="years">%1$s lat</string>
-    <string name="storage_legend">• obecne ustawienie, ★ największy zysk po %1$d latach. Dla 0 kWh podany jest koszt okresu. Dotknij wiersza, aby zobaczyć szczegóły.</string>
+    <string name="storage_legend">★ największy zysk po %1$d latach. Dla 0 kWh podany jest koszt okresu. Dotknij wiersza, aby zobaczyć szczegóły.</string>
     <string name="storage_params">Parametry magazynu</string>
     <string name="storage_power">Moc ładowania/rozładowania [kW]</string>
     <string name="storage_usable">Pojemność użyteczna [%]</string>
     <string name="storage_params_hint">Moc 0 = bez limitu. Pojemność użyteczna to głębokość rozładowania (DoD). Sprawność to sprawność pełnego cyklu, ładowanie i rozładowanie razem.</string>
     <string name="storage_grid_charging">Ładowanie z sieci w tańszej strefie</string>
     <string name="storage_grid_charging_hint">W najtańszej strefie taryfy wielostrefowej magazyn dobiera z sieci tyle, ile wczoraj zabrakło w droższych strefach, i nie rozładowuje się w tańszej strefie.</string>
-    <string name="storage_params_shared">Te parametry dotyczą też głównej analizy i porównania taryf.</string>
     <string name="storage_finance">Koszty i założenia</string>
     <string name="storage_fixed_cost">Koszt stały [zł]</string>
     <string name="storage_subsidy_percent">Dotacja [% kosztów]</string>

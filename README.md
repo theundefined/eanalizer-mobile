@@ -9,7 +9,7 @@ na podstawie godzinowych danych licznikowych z portalu Enea eBOK. To mobilny por
 - Logowanie do Enea eBOK na stronie Enei w okienku aplikacji (reCAPTCHA, kod SMS/e-mail; zapisane dane
   logowania tylko wypełniają formularz) i automatyczne pobieranie godzinowych danych CSV.
 - Koszty energii w taryfach G11, G12, G12w i innych (edytowalna tabela cen i opłat, strefy wg ENEA Operator).
-- Symulacja magazynu energii (pojemność, sprawność) oraz net-meteringu (współczynnik 0,7 / 0,8).
+- Symulacja magazynu energii (pojemność, sprawność, moc, DoD, ładowanie z sieci) na osobnym ekranie oraz net-meteringu (współczynnik 0,7 / 0,8).
 - Rozliczenie net-billing: depozyt prosumencki wyceniany po RCEm lub godzinowych RCE, współczynnik 1,23,
   ważność 12 miesięcy, zwrot nadpłaty.
 - Porównanie wszystkich taryf i wskazanie najtańszej.

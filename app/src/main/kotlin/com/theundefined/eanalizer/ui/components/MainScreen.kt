@@ -265,7 +265,13 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                 }
                 if (state.hasData) {
                     item { ParamsCard(state = state, onChange = { viewModel.updatePrefs(it) }) }
-                    item { SummaryCard(state, onRetryPrices = { viewModel.refreshPrices() }) }
+                    item {
+                        SummaryCard(
+                            state,
+                            onRetryPrices = { viewModel.refreshPrices() },
+                            onOpenStorage = { currentScreen = "storage" },
+                        )
+                    }
                     NAV_GROUPS.forEach { group ->
                         item(key = group.title) { NavGroup(group) { currentScreen = it } }
                     }

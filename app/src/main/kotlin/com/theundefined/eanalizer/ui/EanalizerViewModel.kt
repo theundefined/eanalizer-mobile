@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.theundefined.eanalizer.data.local.AnalysisPrefs
 import com.theundefined.eanalizer.data.local.ReportPrefs
 import com.theundefined.eanalizer.data.local.SettlementMode
+import com.theundefined.eanalizer.data.local.StorageSim
 import com.theundefined.eanalizer.data.remote.EneaProtocolException
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
 import com.theundefined.eanalizer.data.repository.CustomerSelectionRequiredException
@@ -205,19 +206,15 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         }
 
         return withContext(Dispatchers.Default) {
-            // History simulation per tariff (storage state and zones depend on the tariff).
+            // The main analysis is the meter data as is (an existing storage is already in it);
+            // storage sizes are simulated on demand on the storage screen.
+            // History simulation per tariff (zones depend on the tariff).
             val historySim =
                 if (history.isEmpty()) emptyMap()
                 else
-                    Analyzer.compareTariffs(
-                            history,
-                            prefs.capacity,
-                            tariffs,
-                            null,
-                            prefs.efficiency,
-                            prefs.storageOptions(),
-                        )
-                        .associate { it.tariff to it.simulation }
+                    Analyzer.compareTariffs(history, 0.0, tariffs).associate {
+                        it.tariff to it.simulation
+                    }
 
             fun settle(r: AnalysisResult) =
                 if (netBilling)
@@ -233,26 +230,10 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     )
                 else null
 
-            val result =
-                Analyzer.runFullAnalysis(
-                    recs,
-                    prefs.capacity,
-                    tariffs,
-                    tariff,
-                    ratio,
-                    prefs.efficiency,
-                    prefs.storageOptions(),
-                )
+            val result = Analyzer.runFullAnalysis(recs, 0.0, tariffs, tariff, ratio)
             val nb = settle(result)
             val comparison =
-                Analyzer.compareTariffs(
-                        recs,
-                        prefs.capacity,
-                        tariffs,
-                        ratio,
-                        prefs.efficiency,
-                        prefs.storageOptions(),
-                    )
+                Analyzer.compareTariffs(recs, 0.0, tariffs, ratio)
                     .map { r ->
                         val s = settle(r)
                         ComparisonRow(r.tariff, s?.calkowityKoszt ?: r.totalCost, r.fixedFees, s)
@@ -285,11 +266,12 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Simulation of [inputs] with a storage of [capacity] kWh on [tariff] and its total cost (same
-     * settlement as the analysis).
+     * Simulation of [inputs] with a storage of [capacity] kWh ([sim] parameters) on [tariff] and
+     * its total cost (same settlement as the analysis).
      */
     private fun runWithStorage(
         inputs: AnalysisInputs,
+        sim: StorageSim,
         capacity: Double,
         tariff: String = inputs.tariff,
     ): Pair<AnalysisResult, Double> {
@@ -301,8 +283,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 inputs.tariffs,
                 tariff,
                 inputs.netMeteringRatio,
-                p.efficiency,
-                p.storageOptions(),
+                sim.efficiency,
+                sim.options,
             )
         if (p.mode != SettlementMode.NET_BILLING) return r to r.totalCost
         val history =
@@ -314,8 +296,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                         inputs.tariffs,
                         tariff,
                         null,
-                        p.efficiency,
-                        p.storageOptions(),
+                        sim.efficiency,
+                        sim.options,
                     )
                     .simulation
         val cost =
@@ -334,14 +316,17 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Computes the period cost for the compared storage sizes (plus the current and suggested one).
+     * Computes the period cost for the compared storage sizes (plus the selected and suggested
+     * one).
      */
     fun loadStorage() {
         val a = _uiState.value.analysis ?: return
+        val rp = _uiState.value.reportPrefs
+        val sim = rp.storageSim()
         val caps =
-            (_uiState.value.reportPrefs.storageCapacities +
+            (rp.storageCapacities +
                     0.0 +
-                    a.inputs.prefs.capacity +
+                    rp.storageSelected +
                     Math.round(a.optimalCapacity * 2) / 2.0)
                 .filter { it in 0.0..MAX_STORAGE_KWH }
                 .distinct()
@@ -349,6 +334,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         val current = _uiState.value.storage
         if (
             current.forAnalysis === a &&
+                current.sim == sim &&
                 current.capacities == caps &&
                 (current.loading || current.costs.isNotEmpty())
         )
@@ -359,15 +345,21 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.update {
                     it.copy(
                         storage =
-                            // Same analysis: the detail of the selected size stays valid.
-                            if (current.detailFor === a)
+                            // Same simulation: the detail of the selected size stays valid.
+                            if (current.detailFor === a && current.sim == sim)
                                 current.copy(loading = true, capacities = caps, costs = emptyMap())
-                            else StorageState(loading = true, forAnalysis = a, capacities = caps)
+                            else
+                                StorageState(
+                                    loading = true,
+                                    forAnalysis = a,
+                                    sim = sim,
+                                    capacities = caps,
+                                )
                     )
                 }
                 val costs =
                     withContext(Dispatchers.Default) {
-                        caps.associateWith { runWithStorage(a.inputs, it).second }
+                        caps.associateWith { runWithStorage(a.inputs, sim, it).second }
                     }
                 _uiState.update {
                     it.copy(
@@ -375,6 +367,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                             it.storage.copy(
                                 loading = false,
                                 forAnalysis = a,
+                                sim = sim,
                                 capacities = caps,
                                 costs = costs,
                             )
@@ -387,6 +380,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     fun loadStorageDetail(capacity: Double) {
         val a = _uiState.value.analysis ?: return
         val s = _uiState.value.storage
+        val sim = s.sim ?: return
         if (s.forAnalysis !== a) return
         if (s.detail?.capacity == capacity && s.detailFor === a) return
         storageDetailJob?.cancel()
@@ -394,8 +388,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             viewModelScope.launch {
                 val detail =
                     withContext(Dispatchers.Default) {
-                        val (run, _) = runWithStorage(a.inputs, capacity)
-                        val usable = capacity * a.inputs.prefs.usableFraction.coerceIn(0.0, 1.0)
+                        val (run, _) = runWithStorage(a.inputs, sim, capacity)
+                        val usable = capacity * sim.options.usableFraction.coerceIn(0.0, 1.0)
                         StorageDetail(
                             capacity = capacity,
                             usage = StorageUsage.of(capacity, usable, run.simulation),
@@ -404,15 +398,15 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                                     .map { t ->
                                         TariffStorageRow(
                                             t,
-                                            runWithStorage(a.inputs, 0.0, t).second,
-                                            runWithStorage(a.inputs, capacity, t).second,
+                                            runWithStorage(a.inputs, sim, 0.0, t).second,
+                                            runWithStorage(a.inputs, sim, capacity, t).second,
                                         )
                                     }
                                     .sortedBy { it.withStorage },
                         )
                     }
                 _uiState.update {
-                    if (it.storage.forAnalysis !== a) it
+                    if (it.storage.forAnalysis !== a || it.storage.sim != sim) it
                     else it.copy(storage = it.storage.copy(detail = detail, detailFor = a))
                 }
             }
@@ -449,12 +443,9 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                             else
                                 Analyzer.runFullAnalysis(
                                         history,
-                                        inputs.prefs.capacity,
+                                        0.0,
                                         inputs.tariffs,
-                                        inputs.tariff,
-                                        null,
-                                        inputs.prefs.efficiency,
-                                        inputs.prefs.storageOptions(),
+                                        inputs.tariff
                                     )
                                     .simulation
                         DynamicTariff.cost(

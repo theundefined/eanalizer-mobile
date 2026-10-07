@@ -2,6 +2,7 @@ package com.theundefined.eanalizer.ui
 
 import com.theundefined.eanalizer.data.local.AnalysisPrefs
 import com.theundefined.eanalizer.data.local.ReportPrefs
+import com.theundefined.eanalizer.data.local.StorageSim
 import com.theundefined.eanalizer.data.remote.EneaCustomer
 import com.theundefined.eanalizer.domain.AggregateRow
 import com.theundefined.eanalizer.domain.AnalysisResult
@@ -21,7 +22,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
 
-/** Cost of one tariff in the comparison (with the current storage/settlement settings). */
+/** Cost of one tariff in the comparison (without storage, current settlement settings). */
 data class ComparisonRow(
     val tariff: String,
     val totalCost: Double,
@@ -69,10 +70,14 @@ class AnalysisInputs(
     val rcem: Map<YearMonth, Double>,
 )
 
-/** Total cost of the period per storage capacity (computed on demand for one [Analysis]). */
+/**
+ * Total cost of the period per storage capacity (computed on demand for one [Analysis] and storage
+ * parameters).
+ */
 data class StorageState(
     val loading: Boolean = false,
     val forAnalysis: Analysis? = null,
+    val sim: StorageSim? = null,
     val capacities: List<Double> = emptyList(),
     val costs: Map<Double, Double> = emptyMap(),
     val detail: StorageDetail? = null,
