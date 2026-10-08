@@ -102,6 +102,8 @@
     <string name="screen_compare">Porównanie taryf</string>
     <string name="screen_rce">Ceny rynkowe RCE</string>
     <string name="screen_monthly">Podsumowanie miesięczne</string>
+    <string name="data_range_period">Okres analizy</string>
+    <string name="data_range_all_months">Wszystkie miesiące</string>
     <string name="screen_data">Dane dzienne</string>
     <string name="screen_tariffs">Taryfy</string>
     <string name="export">Eksport danych</string>

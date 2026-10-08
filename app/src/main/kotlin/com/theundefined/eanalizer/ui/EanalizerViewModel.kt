@@ -253,6 +253,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                         Periods.isProbableDstSpringGap(it)
                     },
                 daily = Aggregation.daily(recs, tariffs, tariff),
+                dailyAll = Aggregation.daily(all, tariffs, tariff),
                 monthly = Aggregation.monthly(recs, tariffs, tariff),
                 missingRcem = nb?.missingRcemMonths ?: emptyList(),
                 pricesUnavailable = pricesUnavailable,

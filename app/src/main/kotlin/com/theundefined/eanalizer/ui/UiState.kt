@@ -43,6 +43,8 @@ data class Analysis(
     /** Missing hours, without the spring DST gap. */
     val missingHours: List<LocalDateTime>,
     val daily: List<AggregateRow>,
+    /** Days of all stored data (not just the period), for browsing by year. */
+    val dailyAll: List<AggregateRow>,
     val monthly: List<AggregateRow>,
     /** RCEm months needed for net-billing but not published/downloaded. */
     val missingRcem: List<YearMonth>,

@@ -1,24 +1,38 @@
 package com.theundefined.eanalizer.ui.components
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.domain.AggregateRow
 import com.theundefined.eanalizer.domain.Aggregation
+import com.theundefined.eanalizer.ui.Analysis
 import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.UiState
 import com.theundefined.eanalizer.ui.kwh
 import com.theundefined.eanalizer.ui.num
 import com.theundefined.eanalizer.ui.zl
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
 
 @Composable
 fun CompareScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> Unit) {
@@ -173,11 +187,28 @@ fun MonthlyScreen(state: UiState, onBack: () -> Unit) {
 @Composable
 fun DataScreen(state: UiState, onBack: () -> Unit) {
     val a = state.analysis
+    var year by rememberSaveable { mutableStateOf<Int?>(null) }
+    var month by rememberSaveable { mutableStateOf<String?>(null) }
+    val days = remember(a, year, month) { a?.let { dailyIn(it, year, month) }.orEmpty() }
     SubScreen(stringResource(R.string.screen_data), onBack) {
         item { MutedText(stringResource(R.string.data_files, state.dataYears.joinToString(", "))) }
         if (a == null) return@SubScreen
         item { PeriodInfo(a) }
-        item { SectionCard { ImportExportChart(a.daily, tariff = a.inputs.tariff) } }
+        item {
+            SectionCard {
+                DailyRangePicker(
+                    a,
+                    year,
+                    month,
+                    {
+                        year = it
+                        month = null
+                    },
+                    { month = it }
+                )
+                ImportExportChart(days, tariff = a.inputs.tariff)
+            }
+        }
         item {
             SectionCard(title = stringResource(R.string.missing_hours_list, a.missingHours.size)) {
                 if (a.missingHours.isEmpty()) MutedText(stringResource(R.string.no_missing_hours))
@@ -191,8 +222,77 @@ fun DataScreen(state: UiState, onBack: () -> Unit) {
                     MutedText(stringResource(R.string.and_more, a.missingHours.size - MAX_MISSING))
             }
         }
-        item { AggregateTable(a.daily.reversed(), "") }
+        item { AggregateTable(days.reversed(), "") }
     }
+}
+
+/**
+ * Year ([year] null = the analysis period) and optionally one month ([month], `yyyy-MM`) of the
+ * daily data.
+ */
+@Composable
+private fun DailyRangePicker(
+    a: Analysis,
+    year: Int?,
+    month: String?,
+    onYear: (Int?) -> Unit,
+    onMonth: (String?) -> Unit,
+) {
+    val years = remember(a) { a.dailyAll.map { it.key.take(4).toInt() }.distinct().sorted() }
+    val months = remember(a, year) { dailyIn(a, year, null).map { it.key.take(7) }.distinct() }
+    ChipRow {
+        FilterChip(
+            selected = year == null,
+            onClick = { onYear(null) },
+            label = { Text(stringResource(R.string.data_range_period)) },
+        )
+        years.forEach { y ->
+            FilterChip(
+                selected = year == y,
+                onClick = { onYear(y) },
+                label = { Text(y.toString()) },
+            )
+        }
+    }
+    if (months.size > 1)
+        ChipRow {
+            FilterChip(
+                selected = month == null,
+                onClick = { onMonth(null) },
+                label = { Text(stringResource(R.string.data_range_all_months)) },
+            )
+            months.forEach { m ->
+                val ym = YearMonth.parse(m)
+                FilterChip(
+                    selected = month == m,
+                    onClick = { onMonth(m) },
+                    label = {
+                        Text(
+                            ym.month.getDisplayName(
+                                TextStyle.SHORT_STANDALONE,
+                                Locale.getDefault()
+                            ) + if (year == null) " ${ym.year % 100}" else ""
+                        )
+                    },
+                )
+            }
+        }
+}
+
+@Composable
+private fun ChipRow(content: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        content()
+    }
+}
+
+/** Days of [year] (null = the analysis period), narrowed to [month] (`yyyy-MM`) if given. */
+private fun dailyIn(a: Analysis, year: Int?, month: String?): List<AggregateRow> {
+    val days = if (year == null) a.daily else a.dailyAll.filter { it.key.startsWith("$year-") }
+    return if (month == null) days else days.filter { it.key.startsWith("$month-") }
 }
 
 private const val MAX_MISSING = 50

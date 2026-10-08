@@ -100,6 +100,8 @@
     <string name="screen_compare">Tariff comparison</string>
     <string name="screen_rce">RCE market prices</string>
     <string name="screen_monthly">Monthly summary</string>
+    <string name="data_range_period">Analysis period</string>
+    <string name="data_range_all_months">All months</string>
     <string name="screen_data">Daily data</string>
     <string name="screen_tariffs">Tariffs</string>
     <string name="export">Data export</string>
