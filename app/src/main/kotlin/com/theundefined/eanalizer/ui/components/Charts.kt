@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
@@ -244,6 +245,40 @@ private fun Swatch(color: Color) {
 }
 
 @Composable
+private fun ForecastLegendItem(color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Canvas(Modifier.size(10.dp)) {
+            val w = 1.5.dp.toPx()
+            drawRect(
+                color,
+                topLeft = Offset(w / 2, w / 2),
+                size = Size(size.width - w, size.height - w),
+                style =
+                    Stroke(
+                        w,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(w * 2, w * 1.5f))
+                    ),
+            )
+        }
+        MutedText(stringResource(R.string.chart_forecast))
+    }
+}
+
+@Composable
+private fun AverageLegendItem(color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(width = 12.dp, height = 2.dp).background(color))
+        MutedText(stringResource(R.string.chart_average))
+    }
+}
+
+@Composable
 private fun LegendItem(color: Color, label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -283,14 +318,23 @@ internal fun categoricalColors(): List<Color> =
             Color(0xFFE34948),
         )
 
-/** One series of [GroupedZoneBarChart]: a row (or null = no data) per key. */
-data class BarSeries(val label: String, val color: Color, val rows: List<AggregateRow?>)
+/**
+ * One series of [GroupedZoneBarChart]: a row (or null = no data) per key, [forecast] rows by key
+ * index for incomplete keys.
+ */
+data class BarSeries(
+    val label: String,
+    val color: Color,
+    val rows: List<AggregateRow?>,
+    val forecast: Map<Int, AggregateRow> = emptyMap(),
+)
 
 /**
  * Several series side by side per key (e.g. the same month of several years), each bar stacked by
  * tariff zone ([AggregateRow.zones], cheapest at the bottom, more opaque = pricier). [export] plots
  * the export instead of the consumption (both before balancing). Tapping a group shows its values
- * per series and zone.
+ * per series and zone. A [BarSeries.forecast] is drawn as a dashed extension of the bar, [average]
+ * (per key, null = none) as a line across the group.
  */
 @Composable
 fun GroupedZoneBarChart(
@@ -299,14 +343,22 @@ fun GroupedZoneBarChart(
     export: Boolean,
     modifier: Modifier = Modifier,
     tariff: String? = null,
+    average: List<Double?> = emptyList(),
 ) {
     if (keys.isEmpty() || series.isEmpty()) return
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val averageColor = MaterialTheme.colorScheme.onSurface
     var selected by remember(keys, series) { mutableStateOf<Int?>(null) }
     fun total(r: AggregateRow) = if (export) r.oddaniePrzed else r.poborPrzed
     fun part(z: ZoneVolume) = if (export) z.oddaniePrzed else z.poborPrzed
     val allRows = remember(series) { series.flatMap { it.rows.filterNotNull() } }
-    val max = (allRows.maxOfOrNull(::total) ?: 0.0).coerceAtLeast(0.001)
+    val hasForecast = series.any { it.forecast.isNotEmpty() }
+    val max =
+        (allRows.map(::total) +
+                series.flatMap { s -> s.forecast.values.map(::total) } +
+                average.filterNotNull())
+            .maxOrNull()
+            ?.coerceAtLeast(0.001) ?: 1.0
     val zoneAlpha = remember(allRows) { zoneAlpha(allRows) }
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
@@ -315,6 +367,11 @@ fun GroupedZoneBarChart(
         ) {
             series.forEach { LegendItem(it.color, it.label) }
         }
+        if (hasForecast || average.any { it != null })
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (hasForecast) ForecastLegendItem(averageColor)
+                if (average.any { it != null }) AverageLegendItem(averageColor)
+            }
         if (zoneAlpha.size > 1) ZoneLegend(allRows, zoneAlpha, tariff, series.map { it.color })
         val sel = selected
         if (sel == null) MutedText(stringResource(R.string.chart_hint))
@@ -330,7 +387,18 @@ fun GroupedZoneBarChart(
                             val name = if (it.zone == Aggregation.UNKNOWN_ZONE) unknown else it.zone
                             " · $name ${kwh(part(it))}"
                         }
-                MutedText("${s.label}: ${r?.let { kwh(total(it)) } ?: "—"}${zones.orEmpty()}")
+                val value = r?.let { kwh(total(it)) } ?: "—"
+                val f = s.forecast[sel]
+                MutedText(
+                    "${s.label}: " +
+                        (if (f != null)
+                            stringResource(R.string.chart_forecast_value, value, kwh(total(f)))
+                        else value) +
+                        zones.orEmpty()
+                )
+            }
+            average.getOrNull(sel)?.let {
+                MutedText(stringResource(R.string.chart_average_value, kwh(it)))
             }
         }
         Canvas(
@@ -348,6 +416,11 @@ fun GroupedZoneBarChart(
             val barW =
                 ((slot - groupGap - barGap * (series.size - 1)) / series.size).coerceAtLeast(1f)
             val radius = minOf(3.dp.toPx(), barW / 2)
+            val dash =
+                Stroke(
+                    1.5.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))
+                )
             keys.indices.forEach { i ->
                 val alpha = if (selected == null || selected == i) 1f else 0.4f
                 series.forEachIndexed { j, s ->
@@ -375,6 +448,32 @@ fun GroupedZoneBarChart(
                         )
                         end += h
                     }
+                    // Forecast: dashed outline from the actual top up to the forecast.
+                    val f = s.forecast[i]?.let { (total(it) / max * size.height).toFloat() }
+                    if (f != null && f > end) {
+                        val inset = dash.width / 2
+                        drawPath(
+                            roundedBar(
+                                x + inset,
+                                size.height - f + inset,
+                                barW - 2 * inset,
+                                f - end - inset,
+                                radius,
+                                roundTop = true,
+                            ),
+                            s.color.copy(alpha = alpha),
+                            style = dash,
+                        )
+                    }
+                }
+                average.getOrNull(i)?.let { avg ->
+                    val y = size.height - (avg / max * size.height).toFloat()
+                    drawLine(
+                        averageColor.copy(alpha = alpha),
+                        Offset(i * slot + groupGap / 4, y),
+                        Offset((i + 1) * slot - groupGap / 4, y),
+                        2.dp.toPx(),
+                    )
                 }
             }
             drawLine(

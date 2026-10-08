@@ -22,8 +22,25 @@ data class Heatmap(val months: List<YearMonth>, val values: List<DoubleArray>) {
             } ?: 0.0
 }
 
-/** Twelve months of one year; null where there is no data. */
-data class YearMonths(val year: Int, val months: List<AggregateRow?>) {
+/**
+ * Forecast of the incomplete last month of the data: its volumes (zones too) scaled by 1 / [share],
+ * where [share] is the part of the month's hours that has data.
+ */
+data class MonthForecast(val month: Int, val share: Double, val row: AggregateRow)
+
+/**
+ * Twelve months of one year; null where there is no data. [forecast] is set for the year holding
+ * the incomplete last month of the data.
+ */
+data class YearMonths(
+    val year: Int,
+    val months: List<AggregateRow?>,
+    val forecast: MonthForecast? = null,
+) {
+    /** Forecast for month [index] (0-based) if there is one, else its row. */
+    fun forecastOrActual(index: Int): AggregateRow? =
+        forecast?.takeIf { it.month == index + 1 }?.row ?: months[index]
+
     val poborPrzed: Double
         get() = months.sumOf { it?.poborPrzed ?: 0.0 }
 
@@ -110,12 +127,47 @@ object Insights {
     ): List<YearMonths> {
         val monthly =
             Aggregation.monthly(records, table, tariff).associateBy { YearMonth.parse(it.key) }
+        val forecast = forecast(records, monthly)
         return monthly.keys
             .map { it.year }
             .distinct()
             .sortedDescending()
-            .map { y -> YearMonths(y, (1..12).map { m -> monthly[YearMonth.of(y, m)] }) }
+            .map { y ->
+                YearMonths(
+                    y,
+                    (1..12).map { m -> monthly[YearMonth.of(y, m)] },
+                    forecast?.takeIf { it.first.year == y }?.second,
+                )
+            }
     }
+
+    /**
+     * Forecast of the last month of the data when it has fewer hours than the month (e.g. 1/3 of
+     * the month with data = volumes x 3).
+     */
+    private fun forecast(
+        records: List<HourlyRecord>,
+        monthly: Map<YearMonth, AggregateRow>,
+    ): Pair<YearMonth, MonthForecast>? {
+        val last = monthly.keys.maxOrNull() ?: return null
+        val row = monthly.getValue(last)
+        val hours = records.count { YearMonth.from(it.timestamp) == last }
+        val share = hours.toDouble() / (last.lengthOfMonth() * 24)
+        if (hours == 0 || share >= 1.0) return null
+        return last to MonthForecast(last.monthValue, share, scale(row, 1 / share))
+    }
+
+    private fun scale(r: AggregateRow, f: Double) =
+        r.copy(
+            poborPrzed = r.poborPrzed * f,
+            oddaniePrzed = r.oddaniePrzed * f,
+            pobor = r.pobor * f,
+            oddanie = r.oddanie * f,
+            zones =
+                r.zones.map {
+                    it.copy(poborPrzed = it.poborPrzed * f, oddaniePrzed = it.oddaniePrzed * f)
+                },
+        )
 
     /**
      * Share of the annual PV production per month for a typical south-facing installation in Poland

@@ -269,6 +269,13 @@
     <string name="yoy_years">Lata:</string>
     <string name="yoy_month_kwh">Miesiąc [kWh]</string>
     <string name="yoy_change">Zmiana</string>
+    <string name="chart_forecast">Prognoza</string>
+    <string name="chart_forecast_value">%1$s, prognoza ~%2$s</string>
+    <string name="chart_average">Średnia z lat</string>
+    <string name="chart_average_value">Średnia z lat: %1$s</string>
+    <string name="yoy_average">Średnia</string>
+    <string name="yoy_forecast_note">~ prognoza dla %1$s: dane z %2$s%% miesiąca, wynik × %3$s.</string>
+    <string name="yoy_average_note">Średnia z wybranych lat, w których miesiąc ma dane (niepełny miesiąc liczony z prognozy).</string>
     <string name="yoy_partial">Miesiące bez pełnych danych zaniżają sumy; „—” oznacza brak danych.</string>
     <!-- Profile -->
     <string name="profile_info">Średnie wartości godzinowe przed bilansowaniem. Weekendy obejmują też święta.</string>

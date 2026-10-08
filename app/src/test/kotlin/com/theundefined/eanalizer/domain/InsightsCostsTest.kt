@@ -99,6 +99,26 @@ class InsightsTest {
     }
 
     @Test
+    fun byYearForecastsIncompleteLastMonth() {
+        // September 2024 complete (720 h of 0.1 kWh), October 2024: 10 of 31 days.
+        val sep = (0 until 30 * 24).map { rec(at(2024, 9, 1).plusHours(it.toLong()), 0.1, 0.0) }
+        val oct = (0 until 10 * 24).map { rec(at(2024, 10, 1).plusHours(it.toLong()), 0.5, 0.1) }
+        val y = Insights.byYear(sep + oct, TariffTable.default(), "G12w").single()
+        val f = y.forecast!!
+        assertEquals(10, f.month)
+        assertEquals(10.0 / 31, f.share, eps)
+        assertEquals(0.5 * 240 * 3.1, f.row.poborPrzed, 1e-6)
+        assertEquals(0.1 * 240 * 3.1, f.row.oddaniePrzed, 1e-6)
+        assertEquals(f.row.poborPrzed, f.row.zones.sumOf { it.poborPrzed }, 1e-6)
+        // Actual values stay unscaled; the forecast replaces only the incomplete month.
+        assertEquals(120.0, y.months[9]!!.poborPrzed, 1e-6)
+        assertEquals(f.row, y.forecastOrActual(9))
+        assertEquals(y.months[8], y.forecastOrActual(8))
+        // A complete last month has no forecast.
+        assertNull(Insights.byYear(sep).single().forecast)
+    }
+
+    @Test
     fun pvSharesSumToOne() {
         assertEquals(1.0, Insights.PV_MONTHLY_SHARE.sum(), 1e-9)
         assertEquals(12, Insights.PV_MONTHLY_SHARE.size)

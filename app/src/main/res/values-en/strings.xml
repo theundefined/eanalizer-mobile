@@ -267,6 +267,13 @@
     <string name="yoy_years">Years:</string>
     <string name="yoy_month_kwh">Month [kWh]</string>
     <string name="yoy_change">Change</string>
+    <string name="chart_forecast">Forecast</string>
+    <string name="chart_forecast_value">%1$s, forecast ~%2$s</string>
+    <string name="chart_average">Average of years</string>
+    <string name="chart_average_value">Average of years: %1$s</string>
+    <string name="yoy_average">Average</string>
+    <string name="yoy_forecast_note">~ forecast for %1$s: data for %2$s%% of the month, value × %3$s.</string>
+    <string name="yoy_average_note">Average of the selected years with data in that month (an incomplete month counts by its forecast).</string>
     <string name="yoy_partial">Months without complete data lower the sums; “—” means no data.</string>
     <!-- Profile -->
     <string name="profile_info">Average hourly values before balancing. Weekends include public holidays.</string>

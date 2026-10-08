@@ -506,6 +506,16 @@ fun YearOverYearScreen(state: UiState, onBack: () -> Unit) {
                     }
                 }
                 val monthNames = (1..12).map { java.time.Month.of(it).shortName() }
+                // Mean of the shown years per month (at least two with data).
+                val average =
+                    if (shown.size < 2) emptyList()
+                    else
+                        (0 until 12).map { m ->
+                            shown
+                                .mapNotNull { value(it.forecastOrActual(m)) }
+                                .takeIf { it.size >= 2 }
+                                ?.average()
+                        }
                 GroupedZoneBarChart(
                     keys = monthNames,
                     series =
@@ -514,15 +524,23 @@ fun YearOverYearScreen(state: UiState, onBack: () -> Unit) {
                                 y.year.toString(),
                                 palette[years.indexOf(y) % palette.size],
                                 y.months,
+                                y.forecast?.let { mapOf(it.month - 1 to it.row) }.orEmpty(),
                             )
                         },
                     export = exportSeries,
                     tariff = state.analysis?.inputs?.tariff,
+                    average = average,
                 )
                 // Two years: relative change of the newer one; more: kWh without the unit to fit.
+                // An incomplete month is compared and averaged by its forecast.
                 val pair = shown.size == 2
+                val avg = average.any { it != null }
                 val fmt: (Double) -> String = if (shown.size > 2) ({ num(it, 0) }) else ::kwh
-                val w = listOf(0.8f) + shown.map { 1f } + if (pair) listOf(0.8f) else emptyList()
+                val w =
+                    listOf(0.8f) +
+                        shown.map { 1f } +
+                        (if (pair) listOf(0.8f) else emptyList()) +
+                        if (avg) listOf(1f) else emptyList()
                 TableRow(
                     listOf(
                         stringResource(
@@ -530,17 +548,27 @@ fun YearOverYearScreen(state: UiState, onBack: () -> Unit) {
                         )
                     ) +
                         shown.map { it.year.toString() } +
-                        if (pair) listOf(stringResource(R.string.yoy_change)) else emptyList(),
+                        (if (pair) listOf(stringResource(R.string.yoy_change)) else emptyList()) +
+                        if (avg) listOf(stringResource(R.string.yoy_average)) else emptyList(),
                     header = true,
                     weights = w,
                 )
                 (0 until 12).forEach { m ->
                     val vs = shown.map { value(it.months[m]) }
                     if (vs.all { it == null }) return@forEach
+                    val fs = shown.map { value(it.forecastOrActual(m)) }
                     TableRow(
                         listOf(monthNames[m]) +
-                            vs.map { it?.let(fmt) ?: "—" } +
-                            if (pair) listOf(change(vs[0], vs[1])) else emptyList(),
+                            vs.mapIndexed { j, v ->
+                                val f = fs[j]
+                                when {
+                                    v == null -> "—"
+                                    f != v -> "${fmt(v)} (~${fmt(f!!)})"
+                                    else -> fmt(v)
+                                }
+                            } +
+                            (if (pair) listOf(change(fs[0], fs[1])) else emptyList()) +
+                            if (avg) listOf(average[m]?.let(fmt) ?: "—") else emptyList(),
                         weights = w,
                     )
                 }
@@ -548,10 +576,24 @@ fun YearOverYearScreen(state: UiState, onBack: () -> Unit) {
                 TableRow(
                     listOf("Σ") +
                         totals.map(fmt) +
-                        if (pair) listOf(change(totals[0], totals[1])) else emptyList(),
+                        (if (pair) listOf(change(totals[0], totals[1])) else emptyList()) +
+                        if (avg) listOf(fmt(average.sumOf { it ?: 0.0 })) else emptyList(),
                     header = true,
                     weights = w,
                 )
+                shown
+                    .firstNotNullOfOrNull { y -> y.forecast?.let { y.year to it } }
+                    ?.let { (y, f) ->
+                        MutedText(
+                            stringResource(
+                                R.string.yoy_forecast_note,
+                                "${monthNames[f.month - 1]} $y",
+                                num(f.share * 100, 0),
+                                num(1 / f.share, 1),
+                            )
+                        )
+                    }
+                if (avg) MutedText(stringResource(R.string.yoy_average_note))
                 MutedText(stringResource(R.string.yoy_partial))
             }
         }
