@@ -332,4 +332,93 @@
     <string name="notif_new_data_text">Pobrano nowe dane licznika — otwórz, aby zobaczyć analizę.</string>
     <string name="notif_session_title">Zaloguj się ponownie do Enea</string>
     <string name="notif_session_text">Sesja wygasła, nowe dane nie mogą być pobrane.</string>
+    <!-- Billing since the last settlement -->
+    <string name="billing_title">Od ostatniego rozliczenia</string>
+    <string name="billing_unset">Ustaw datę ostatniego rozliczenia (z faktury rozliczeniowej), aby zobaczyć, ile wynosi koszt energii od tego dnia.</string>
+    <string name="billing_set_date">Ustaw datę rozliczenia</string>
+    <string name="billing_no_data">Brak danych licznika po dacie rozliczenia %1$s.</string>
+    <string name="billing_range">%1$s – %2$s (%3$d dni), taryfa %4$s</string>
+    <string name="billing_data_from">Data rozliczenia %1$s jest przed początkiem danych — liczone od %2$s.</string>
+    <string name="billing_usage_cost">Energia i dystrybucja</string>
+    <string name="billing_fixed_fees">Opłaty stałe (za dni)</string>
+    <string name="billing_total">Koszt od rozliczenia</string>
+    <string name="billing_paid">Wpłacone prognozy</string>
+    <string name="billing_due">Do dopłaty</string>
+    <string name="billing_overpaid">Nadpłata</string>
+    <string name="billing_hint">Szacunek według cennika z tabeli taryf, bez magazynu, z wybranym sposobem rozliczenia. Do końca okresu rozliczeniowego kwota będzie rosła.</string>
+    <string name="billing_date">Data ostatniego rozliczenia</string>
+    <string name="billing_clear">Usuń</string>
+    <string name="billing_paid_field">Wpłaty od rozliczenia [zł]</string>
+    <string name="billing_settings_hint">Data końca okresu z ostatniej faktury rozliczeniowej. Wpłaty to suma zapłaconych od tego czasu faktur prognozowych — pokażemy, ile zostanie do dopłaty lub nadpłaty.</string>
+
+    <!-- Net-billing deposit -->
+    <string name="screen_deposit">Depozyt prosumencki</string>
+    <string name="nav_deposit_desc">Ile depozytu masz, kiedy wygaśnie i ile wróci</string>
+    <string name="deposit_info">Depozyt z ostatnich 12 miesięcy danych (wycena jak w ustawieniach net-billingu), niezależnie od wybranego okresu.</string>
+    <string name="deposit_not_net_billing">Depozyt dotyczy rozliczenia net-billing — wybierz je w parametrach na ekranie głównym.</string>
+    <string name="deposit_state_at">Stan na %1$s</string>
+    <string name="deposit_now">Depozyt teraz</string>
+    <string name="deposit_from">Z miesiąca</string>
+    <string name="deposit_valid_to">Ważny do</string>
+    <string name="deposit_left">Zostało</string>
+    <string name="deposit_max_refund">Maks. zwrot</string>
+    <string name="deposit_table_hint">Depozyt z danego miesiąca można wykorzystać przez kolejne 12 miesięcy (najstarszy najpierw). Maks. zwrot to zwrot, gdyby z depozytu nic już nie zużyć.</string>
+    <string name="deposit_forecast">Prognoza wykorzystania</string>
+    <string name="deposit_forecast_used">Zużyte na energię</string>
+    <string name="deposit_expected">Koszt energii</string>
+    <string name="deposit_expiring">Wygasa</string>
+    <string name="deposit_refund_short">Zwrot</string>
+    <string name="deposit_balance">Saldo</string>
+    <string name="deposit_forecast_hint">Koszt energii czynnej przyszłych miesięcy przyjęty jak rok wcześniej (lub średnia). Nowy depozyt z przyszłej produkcji jest zużywany po obecnym i wygasa później, więc nie zmienia prognozy.</string>
+
+    <!-- Base load and peaks -->
+    <string name="screen_power">Zużycie w tle i szczyty</string>
+    <string name="nav_power_desc">Stały pobór urządzeń i godziny największego poboru</string>
+    <string name="baseload_title">Zużycie w tle</string>
+    <string name="baseload_no_data">Brak danych z godzin nocnych w tym okresie.</string>
+    <string name="baseload_power">Stały pobór</string>
+    <string name="baseload_annual">Rocznie</string>
+    <string name="baseload_cost">Koszt roczny (taryfa %1$s)</string>
+    <string name="baseload_share">Udział w poborze</string>
+    <string name="baseload_power_short">Pobór</string>
+    <string name="baseload_days">Dni</string>
+    <string name="baseload_hint">Najniższy godzinowy pobór między %1$d:00 a %2$d:00 każdego dnia (mediana) — lodówka, router, czuwanie urządzeń. Przy magazynie energii zasilającym dom w nocy wynik będzie zaniżony. Udział liczony względem poboru z sieci — przy instalacji PV część zużycia nie jest widoczna na liczniku.</string>
+    <string name="peaks_title">Szczyty mocy</string>
+    <string name="contracted_power">Moc umowna [kW]</string>
+    <string name="peaks_hint">Dane godzinowe pokazują średnią moc w godzinie. Chwilowe szczyty (np. czajnik, płyta indukcyjna) są wyższe, więc wynik poniżej mocy umownej nie gwarantuje, że nie zadziała zabezpieczenie.</string>
+    <string name="peaks_max">Największa średnia godzinowa</string>
+    <string name="peaks_of_contracted">Względem mocy umownej</string>
+    <string name="peaks_hours_above">Godziny powyżej %1$s mocy umownej</string>
+    <string name="peaks_top">Godziny z największym poborem</string>
+    <string name="peaks_monthly">Szczyt w każdym miesiącu</string>
+    <string name="peaks_histogram">Rozkład godzin według średniej mocy</string>
+    <string name="peaks_up_to">do %1$s kW</string>
+    <string name="peaks_above">powyżej %1$s kW</string>
+
+    <!-- Extra load what-if -->
+    <string name="screen_extraload">Pompa ciepła i auto elektryczne</string>
+    <string name="nav_extraload_desc">Ile wzrośnie rachunek i czy zmienić taryfę</string>
+    <string name="extraload_info">Symulacja dodatkowego zużycia dodanego do danych z licznika w wybranym okresie. Nadwyżka z PV w danej godzinie najpierw pokrywa nowe zużycie.</string>
+    <string name="extraload_heatpump">Pompa ciepła</string>
+    <string name="extraload_heatpump_kwh">Zużycie roczne [kWh]</string>
+    <string name="extraload_heatpump_hint">Rozłożone na miesiące jak typowe zapotrzebowanie na ciepło w Polsce (najwięcej zimą, latem ciepła woda), równo w ciągu doby.</string>
+    <string name="extraload_ev">Auto elektryczne</string>
+    <string name="extraload_ev_km">Km dziennie</string>
+    <string name="extraload_ev_consumption">kWh/100 km</string>
+    <string name="extraload_ev_power">Moc ładowania [kW]</string>
+    <string name="extraload_ev_start">Start ładowania [godz.]</string>
+    <string name="extraload_ev_daily">Ładowanie dziennie: %1$s</string>
+    <string name="extraload_ev_hint">Ładowanie codziennie od wybranej godziny z podaną mocą, aż do uzupełnienia dziennego zużycia. Start o 22 mieści się w tańszej strefie G12 i G12w.</string>
+    <string name="extraload_result">Wynik</string>
+    <string name="extraload_added">Dodatkowe zużycie w okresie</string>
+    <string name="extraload_added_year">Rocznie</string>
+    <string name="extraload_extra_cost">Wzrost kosztu (taryfa %1$s)</string>
+    <string name="extraload_extra_cost_year">Wzrost kosztu rocznie</string>
+    <string name="extraload_per_kwh">Koszt 1 kWh dodatkowego zużycia</string>
+    <string name="extraload_per_100km">Koszt 100 km</string>
+    <string name="extraload_tariff_changes">Najtańsza taryfa zmienia się z %1$s na %2$s.</string>
+    <string name="extraload_before">Bez</string>
+    <string name="extraload_after">Z dodatkowym</string>
+    <string name="extraload_diff">Różnica</string>
+    <string name="extraload_result_hint">• obecna taryfa. Koszt okresu z wybranym sposobem rozliczenia, bez magazynu; wartości roczne przeliczone z długości okresu.</string>
 </resources>

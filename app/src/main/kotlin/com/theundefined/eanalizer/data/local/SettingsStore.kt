@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.theundefined.eanalizer.data.remote.EneaCustomer
+import com.theundefined.eanalizer.domain.ExtraLoad
 import com.theundefined.eanalizer.domain.NetBillingValuation
 import com.theundefined.eanalizer.domain.Period
 import com.theundefined.eanalizer.domain.StorageEconomics
@@ -43,6 +44,8 @@ data class AnalysisPrefs(
     /** [Period.CUSTOM] range, ISO dates. */
     val customFrom: String? = null,
     val customTo: String? = null,
+    /** Last settlement (invoice) date, ISO; the amount due is counted from it. */
+    val billingDate: String? = null,
 )
 
 /** Physical parameters of the simulated storage. */
@@ -86,7 +89,22 @@ data class ReportPrefs(
     val storageCapacities: List<Double> = StorageEconomics.CAPACITIES.drop(1),
     /** Dynamic tariff: seller margin added to RCE, net zł/kWh. */
     val dynamicMargin: Double = 0.10,
+    /** Forecast payments made since the last settlement, zł. */
+    val billingPaid: Double = 0.0,
+    /** Contracted power, kW (0 = unknown). */
+    val contractedPowerKw: Double = 0.0,
+    /** What-if: heat pump consumption per year, kWh. */
+    val heatPumpKwh: Double = 0.0,
+    /** What-if: electric car distance per day, km. */
+    val evKmPerDay: Double = 0.0,
+    val evKwhPer100Km: Double = 18.0,
+    /** Electric car charging power, kW. */
+    val evChargeKw: Double = 3.7,
+    /** Hour when the electric car starts charging. */
+    val evStartHour: Int = 22,
 ) {
+    fun extraLoad() = ExtraLoad(heatPumpKwh, evKmPerDay, evKwhPer100Km, evChargeKw, evStartHour)
+
     fun storageSim() =
         StorageSim(
             storageEfficiency,

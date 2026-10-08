@@ -22,9 +22,12 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.ElectricCar
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
@@ -67,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.theundefined.eanalizer.R
+import com.theundefined.eanalizer.data.local.SettlementMode
 import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.EanalizerViewModel.ExportKind
 import com.theundefined.eanalizer.ui.EanalizerViewModel.UiEvent
@@ -226,6 +230,18 @@ fun MainScreen(viewModel: EanalizerViewModel) {
             DataScreen(state = state, onBack = back)
             return
         }
+        "power" -> {
+            PowerScreen(state = state, viewModel = viewModel, onBack = back)
+            return
+        }
+        "extraload" -> {
+            ExtraLoadScreen(state = state, viewModel = viewModel, onBack = back)
+            return
+        }
+        "deposit" -> {
+            DepositScreen(state = state, onBack = back)
+            return
+        }
     }
 
     Scaffold(
@@ -264,6 +280,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                     )
                 }
                 if (state.hasData) {
+                    item { BillingCard(state, onSetDate = { currentScreen = "settings" }) }
                     item { ParamsCard(state = state, onChange = { viewModel.updatePrefs(it) }) }
                     item {
                         SummaryCard(
@@ -272,8 +289,11 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                             onOpenStorage = { currentScreen = "storage" },
                         )
                     }
+                    val netBilling = state.prefs.mode == SettlementMode.NET_BILLING
                     NAV_GROUPS.forEach { group ->
-                        item(key = group.title) { NavGroup(group) { currentScreen = it } }
+                        item(key = group.title) {
+                            NavGroup(group, netBilling) { currentScreen = it }
+                        }
                     }
                 }
             }
@@ -448,6 +468,8 @@ private class NavEntry(
     val title: Int,
     val description: Int,
     val icon: ImageVector,
+    /** Shown only in net-billing. */
+    val netBillingOnly: Boolean = false,
 )
 
 private class NavGroupDef(val title: Int, val entries: List<NavEntry>)
@@ -471,10 +493,23 @@ private val NAV_GROUPS =
                     Icons.AutoMirrored.Filled.ReceiptLong,
                 ),
                 NavEntry(
+                    "deposit",
+                    R.string.screen_deposit,
+                    R.string.nav_deposit_desc,
+                    Icons.Filled.Savings,
+                    netBillingOnly = true,
+                ),
+                NavEntry(
                     "storage",
                     R.string.screen_storage,
                     R.string.nav_storage_desc,
                     Icons.Filled.BatteryChargingFull,
+                ),
+                NavEntry(
+                    "extraload",
+                    R.string.screen_extraload,
+                    R.string.nav_extraload_desc,
+                    Icons.Filled.ElectricCar,
                 ),
             ),
         ),
@@ -493,6 +528,12 @@ private val NAV_GROUPS =
                     R.string.screen_profile,
                     R.string.nav_profile_desc,
                     Icons.Filled.Schedule,
+                ),
+                NavEntry(
+                    "power",
+                    R.string.screen_power,
+                    R.string.nav_power_desc,
+                    Icons.Filled.Bolt,
                 ),
                 NavEntry(
                     "selfuse",
@@ -522,19 +563,24 @@ private val NAV_GROUPS =
     )
 
 @Composable
-private fun NavGroup(group: NavGroupDef, onOpen: (String) -> Unit) {
+private fun NavGroup(group: NavGroupDef, netBilling: Boolean, onOpen: (String) -> Unit) {
     SectionCard(title = stringResource(group.title)) {
-        group.entries.forEach { e ->
-            ListItem(
-                headlineContent = { Text(stringResource(e.title)) },
-                supportingContent = { Text(stringResource(e.description)) },
-                leadingContent = { Icon(e.icon, contentDescription = null) },
-                trailingContent = {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-                },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.fillMaxWidth().clickable { onOpen(e.screen) },
-            )
-        }
+        group.entries
+            .filter { netBilling || !it.netBillingOnly }
+            .forEach { e ->
+                ListItem(
+                    headlineContent = { Text(stringResource(e.title)) },
+                    supportingContent = { Text(stringResource(e.description)) },
+                    leadingContent = { Icon(e.icon, contentDescription = null) },
+                    trailingContent = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null
+                        )
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.fillMaxWidth().clickable { onOpen(e.screen) },
+                )
+            }
     }
 }

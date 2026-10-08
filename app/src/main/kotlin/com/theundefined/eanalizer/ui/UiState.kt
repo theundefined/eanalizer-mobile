@@ -6,13 +6,18 @@ import com.theundefined.eanalizer.data.local.StorageSim
 import com.theundefined.eanalizer.data.remote.EneaCustomer
 import com.theundefined.eanalizer.domain.AggregateRow
 import com.theundefined.eanalizer.domain.AnalysisResult
+import com.theundefined.eanalizer.domain.BaseLoad
+import com.theundefined.eanalizer.domain.BillingToDate
 import com.theundefined.eanalizer.domain.DailyTrends
 import com.theundefined.eanalizer.domain.DayProfile
+import com.theundefined.eanalizer.domain.DepositForecastMonth
 import com.theundefined.eanalizer.domain.DynamicTariffResult
+import com.theundefined.eanalizer.domain.ExtraLoad
 import com.theundefined.eanalizer.domain.Heatmap
 import com.theundefined.eanalizer.domain.HourlyRecord
 import com.theundefined.eanalizer.domain.MonthlyBill
 import com.theundefined.eanalizer.domain.NetBillingResult
+import com.theundefined.eanalizer.domain.Peaks
 import com.theundefined.eanalizer.domain.RceResult
 import com.theundefined.eanalizer.domain.SelfUseMonth
 import com.theundefined.eanalizer.domain.StorageUsage
@@ -59,6 +64,14 @@ data class Analysis(
     val years: List<YearMonths>,
     /** Inputs kept for on-demand reports (storage scenarios, dynamic tariff). */
     val inputs: AnalysisInputs,
+    /** From the last settlement date to the end of the data; null when the date is not set. */
+    val sinceBilling: BillingToDate?,
+    /** Net-billing: settlement of the last 12 months up to the end of the data. */
+    val depositsNow: NetBillingResult?,
+    /** Net-billing: what happens to [depositsNow]'s deposits after the end of the data. */
+    val depositForecast: List<DepositForecastMonth>,
+    val baseLoad: BaseLoad?,
+    val peaks: Peaks,
 )
 
 /** What [Analysis] was computed from. */
@@ -111,6 +124,20 @@ data class DynamicState(
     val margin: Double = 0.0,
     val result: DynamicTariffResult? = null,
     val failedDays: Int = 0,
+)
+
+/** Period cost of one tariff without and with the extra load. */
+data class ExtraLoadRow(val tariff: String, val before: Double, val after: Double)
+
+/** Extra load what-if (computed on demand for one [Analysis] and load). */
+data class ExtraLoadState(
+    val loading: Boolean = false,
+    val forAnalysis: Analysis? = null,
+    val load: ExtraLoad? = null,
+    /** Added consumption in the analysed period, kWh. */
+    val addedKwh: Double = 0.0,
+    /** Cheapest first by the cost with the extra load. */
+    val rows: List<ExtraLoadRow> = emptyList(),
 )
 
 data class RceState(
@@ -166,4 +193,5 @@ data class UiState(
     val years: List<YearMonths> = emptyList(),
     val storage: StorageState = StorageState(),
     val dynamic: DynamicState = DynamicState(),
+    val extraLoad: ExtraLoadState = ExtraLoadState(),
 )

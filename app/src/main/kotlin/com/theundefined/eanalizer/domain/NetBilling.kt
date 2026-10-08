@@ -44,7 +44,24 @@ data class NetBillingResult(
     val missingRceHours: Int,
     val missingRcemMonths: List<YearMonth>,
     val months: List<NetBillingMonth>,
+    /** Deposits not used up or expired at the end of the settlement, oldest first. */
+    val deposits: List<DepositLeft> = emptyList(),
 )
+
+/** A deposit still available after the settlement. */
+data class DepositLeft(
+    /** First month in which the deposit can be used (the month after the export). */
+    val from: YearMonth,
+    /** Last month of validity; what's left then is refunded up to [refundLimit] of [value]. */
+    val to: YearMonth,
+    val value: Double,
+    val left: Double,
+    val refundLimit: Double,
+) {
+    /** Refund if nothing more is used. */
+    val maxRefund: Double
+        get() = minOf(left, value * refundLimit)
+}
 
 /**
  * Prosumer settlement in the net-billing system (port of eanalizer `netbilling.py`):
@@ -251,6 +268,10 @@ object NetBilling {
             missingRceHours = missingRce,
             missingRcemMonths = missingRcem,
             months = rows,
+            deposits =
+                deposits
+                    .filter { it.left > 1e-9 }
+                    .map { DepositLeft(it.from, it.to, it.value, it.left, it.refundLimit) },
         )
     }
 

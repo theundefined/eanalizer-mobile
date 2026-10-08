@@ -46,7 +46,10 @@ app/src/main/kotlin/com/theundefined/eanalizer/
                      Analyzer (storage/net-metering simulation, tariff comparison, optimal capacity),
                      Periods, Aggregation, RceAnalysis, NetBilling + RcemParser, CsvExport + XlsxWriter,
                      Insights (day profile, heatmap, year-over-year, PV self-use estimate),
-                     Costs (StorageEconomics, Bills, DynamicTariff)
+                     Costs (StorageEconomics, Bills, DynamicTariff), Billing (cost since the
+                     settlement date, fixed fees prorated by days), DepositForecast (net-billing
+                     deposits after the data end), Load (base load, peaks), ExtraLoad (heat pump/EV
+                     what-if)
   data/local/        SettingsStore (prefs + EncryptedSharedPreferences), WebViewCookieJar, DataFiles
   data/remote/       EneaHtml (pure eBOK page parsing/URL rules, JVM-tested), EneaClient (customer
                      selection + CSV download on the WebView session), RceClient (PSE RCE per-day
@@ -57,7 +60,8 @@ app/src/main/kotlin/com/theundefined/eanalizer/
   ui/theme/          EanalizerTheme (Material3 light/dark, dynamic color on API 31+)
   ui/components/     Compose screens (MainScreen, AnalysisCards, ReportScreens: Compare/RCE/Monthly/
                      Data, InsightScreens: Bills/Storage/YoY/Profile/SelfUse + DynamicTariffCard,
-                     TariffsScreen, SettingsScreen, EneaLoginScreen, Charts)
+                     BillingScreens: BillingCard/BillingSettings/Deposit, LoadScreens: Power/
+                     ExtraLoad, TariffsScreen, SettingsScreen, EneaLoginScreen, Charts)
 ```
 
 Key rules:
@@ -68,6 +72,7 @@ Key rules:
 - **Login happens in a WebView** (`EneaLoginScreen`): since 10.2026 Enea protects the form with reCAPTCHA Enterprise, so the app never posts credentials itself. Stored credentials (encrypted, not hashed) only prefill the React form; the user submits and enters the 2FA code. Navigation is limited to https `*.enea.pl`; landing on the logged-in `ebok.enea.pl` finishes the login. OkHttp shares the WebView `CookieManager` via `WebViewCookieJar` (also HttpOnly/SSO cookies), and uses the WebView User-Agent. `SessionExpiredException` → show the login WebView again.
 - **Port parity**: domain logic started as a port of eanalizer (tariff zones G12 13-15/22-6, G12w peak 6-21; PSE `dtime` is the END of the quarter; net-billing rules in `NetBilling`) and the base rules should keep matching it. Since v0.1.7 the app is developed independently: features beyond eanalizer are welcome (e.g. net-billing carries deposits from up to 12 months before the period via `history`; with empty history results equal eanalizer). Document deviations in KDoc.
 - **Main screen navigation**: reports are grouped (`NAV_GROUPS` in MainScreen: Costs / Consumption & production / Data) as `ListItem`s with icon + one-line description; configuration (tariffs, PV production, background sync) lives in Settings. Every report states which range it uses (selected period via `PeriodInfo`, or all data).
+- **Ranges independent of the period**: `Analysis.sinceBilling` (from `AnalysisPrefs.billingDate` to the data end) and `Analysis.depositsNow`/`depositForecast` (net-billing, last 12 months to the data end) ignore the selected period; net-billing prices are fetched for the union of all ranges plus their 12-month history. The extra-load what-if runs on demand (`loadExtraLoad`, keyed by `forAnalysis` + `ExtraLoad`) and adds the load to the history too.
 - **Report inputs**: `ReportPrefs` (PV production, storage price and physical parameters, dynamic margin) are kept outside `AnalysisPrefs` so editing them never re-runs `analyze()`.
 - **Storage is a what-if only**: the main analysis, tariff comparison, bills and dynamic tariff always run with capacity 0 (meter data already includes an existing storage). Storage sizes are simulated only on the storage screen (`loadStorage`/`loadStorageDetail`, keyed by `StorageState.sim`). `SettingsStore.migrateStorageParams` moves the pre-v0.1.15 storage fields out of `AnalysisPrefs`. Cheap per-period results are part of `Analysis`; heavy ones (storage scenarios, dynamic tariff) run on demand and remember the `Analysis` instance they belong to (`forAnalysis === analysis`).
 - **Background sync**: `EneaRepository.sync` is guarded by a process-wide `Mutex` (app + job). The job skips when data was synced today and notifies about an expired session only once (flag reset on login).

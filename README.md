@@ -16,6 +16,10 @@ na podstawie godzinowych danych licznikowych z portalu Enea eBOK. To mobilny por
 - Analiza z rynkowymi cenami RCE (API PSE).
 - Obliczanie optymalnej pojemności magazynu.
 - Podsumowania miesięczne i dzienne z wykresami, wykrywanie brakujących godzin.
+- Koszt od daty ostatniego rozliczenia (z opłatami stałymi za dni) i kwota do dopłaty po odjęciu wpłaconych prognoz.
+- Depozyt prosumencki: stan, terminy wygaśnięcia i prognoza zwrotu.
+- Zużycie w tle (stały pobór i jego roczny koszt) oraz szczyty mocy względem mocy umownej.
+- Symulacja pompy ciepła i auta elektrycznego: wzrost kosztu i zmiana najtańszej taryfy.
 - Eksport wyników (symulacja, agregaty dzienne i miesięczne) do CSV.
 - Dane przechowywane lokalnie; dane logowania szyfrowane (EncryptedSharedPreferences).
 

@@ -330,4 +330,93 @@
     <string name="notif_new_data_text">New meter data downloaded — open to see the analysis.</string>
     <string name="notif_session_title">Log in to Enea again</string>
     <string name="notif_session_text">The session expired, new data can\'t be downloaded.</string>
+    <!-- Billing since the last settlement -->
+    <string name="billing_title">Since the last settlement</string>
+    <string name="billing_unset">Set the date of the last settlement (from the settlement invoice) to see the energy cost since that day.</string>
+    <string name="billing_set_date">Set settlement date</string>
+    <string name="billing_no_data">No meter data after the settlement date %1$s.</string>
+    <string name="billing_range">%1$s – %2$s (%3$d days), tariff %4$s</string>
+    <string name="billing_data_from">Settlement date %1$s is before the data starts — counted from %2$s.</string>
+    <string name="billing_usage_cost">Energy and distribution</string>
+    <string name="billing_fixed_fees">Fixed fees (per day)</string>
+    <string name="billing_total">Cost since settlement</string>
+    <string name="billing_paid">Forecast payments made</string>
+    <string name="billing_due">To pay</string>
+    <string name="billing_overpaid">Overpaid</string>
+    <string name="billing_hint">Estimate using the tariff table prices, without storage, with the selected settlement. The amount grows until the end of the billing period.</string>
+    <string name="billing_date">Last settlement date</string>
+    <string name="billing_clear">Remove</string>
+    <string name="billing_paid_field">Paid since settlement [zł]</string>
+    <string name="billing_settings_hint">End date of the period on the last settlement invoice. Payments are the forecast invoices paid since then — the app shows what is left to pay or overpaid.</string>
+
+    <!-- Net-billing deposit -->
+    <string name="screen_deposit">Prosumer deposit</string>
+    <string name="nav_deposit_desc">How much deposit you have, when it expires and the refund</string>
+    <string name="deposit_info">Deposit from the last 12 months of data (valued as in the net-billing settings), regardless of the selected period.</string>
+    <string name="deposit_not_net_billing">The deposit applies to net-billing — select it in the parameters on the main screen.</string>
+    <string name="deposit_state_at">As of %1$s</string>
+    <string name="deposit_now">Deposit now</string>
+    <string name="deposit_from">From month</string>
+    <string name="deposit_valid_to">Valid until</string>
+    <string name="deposit_left">Left</string>
+    <string name="deposit_max_refund">Max refund</string>
+    <string name="deposit_table_hint">A month\'s deposit can be used for the next 12 months (oldest first). Max refund is the refund if nothing more is used.</string>
+    <string name="deposit_forecast">Usage forecast</string>
+    <string name="deposit_forecast_used">Used for energy</string>
+    <string name="deposit_expected">Energy cost</string>
+    <string name="deposit_expiring">Expires</string>
+    <string name="deposit_refund_short">Refund</string>
+    <string name="deposit_balance">Balance</string>
+    <string name="deposit_forecast_hint">Active energy cost of future months taken from a year earlier (or the average). New deposit from future production is used after the current one and expires later, so it does not change the forecast.</string>
+
+    <!-- Base load and peaks -->
+    <string name="screen_power">Base load and peaks</string>
+    <string name="nav_power_desc">Constant standby consumption and the hours of highest import</string>
+    <string name="baseload_title">Base load</string>
+    <string name="baseload_no_data">No night-hour data in this period.</string>
+    <string name="baseload_power">Constant load</string>
+    <string name="baseload_annual">Per year</string>
+    <string name="baseload_cost">Annual cost (tariff %1$s)</string>
+    <string name="baseload_share">Share of import</string>
+    <string name="baseload_power_short">Load</string>
+    <string name="baseload_days">Days</string>
+    <string name="baseload_hint">Lowest hourly import between %1$d:00 and %2$d:00 each day (median) — fridge, router, standby. With a home battery covering the night the result is too low. The share is relative to grid import — with PV part of the consumption is not visible on the meter.</string>
+    <string name="peaks_title">Power peaks</string>
+    <string name="contracted_power">Contracted power [kW]</string>
+    <string name="peaks_hint">Hourly data shows the average power of each hour. Momentary peaks (kettle, induction hob) are higher, so staying below the contracted power does not guarantee the breaker will not trip.</string>
+    <string name="peaks_max">Highest hourly average</string>
+    <string name="peaks_of_contracted">Of contracted power</string>
+    <string name="peaks_hours_above">Hours above %1$s of contracted power</string>
+    <string name="peaks_top">Hours with the highest import</string>
+    <string name="peaks_monthly">Peak of every month</string>
+    <string name="peaks_histogram">Hours by average power</string>
+    <string name="peaks_up_to">up to %1$s kW</string>
+    <string name="peaks_above">above %1$s kW</string>
+
+    <!-- Extra load what-if -->
+    <string name="screen_extraload">Heat pump and electric car</string>
+    <string name="nav_extraload_desc">How much the bill grows and whether to change tariff</string>
+    <string name="extraload_info">Simulation of extra consumption added to the meter data of the selected period. PV surplus in an hour covers the new consumption first.</string>
+    <string name="extraload_heatpump">Heat pump</string>
+    <string name="extraload_heatpump_kwh">Annual consumption [kWh]</string>
+    <string name="extraload_heatpump_hint">Spread over months like the typical heat demand in Poland (most in winter, hot water in summer), evenly over the day.</string>
+    <string name="extraload_ev">Electric car</string>
+    <string name="extraload_ev_km">Km per day</string>
+    <string name="extraload_ev_consumption">kWh/100 km</string>
+    <string name="extraload_ev_power">Charging power [kW]</string>
+    <string name="extraload_ev_start">Charging start [hour]</string>
+    <string name="extraload_ev_daily">Charged per day: %1$s</string>
+    <string name="extraload_ev_hint">Charged every day from the selected hour at the given power until the daily energy is in. Starting at 22 falls in the cheaper zone of G12 and G12w.</string>
+    <string name="extraload_result">Result</string>
+    <string name="extraload_added">Extra consumption in the period</string>
+    <string name="extraload_added_year">Per year</string>
+    <string name="extraload_extra_cost">Cost increase (tariff %1$s)</string>
+    <string name="extraload_extra_cost_year">Cost increase per year</string>
+    <string name="extraload_per_kwh">Cost of 1 kWh of extra consumption</string>
+    <string name="extraload_per_100km">Cost of 100 km</string>
+    <string name="extraload_tariff_changes">The cheapest tariff changes from %1$s to %2$s.</string>
+    <string name="extraload_before">Without</string>
+    <string name="extraload_after">With extra</string>
+    <string name="extraload_diff">Difference</string>
+    <string name="extraload_result_hint">• current tariff. Period cost with the selected settlement, without storage; annual values scaled from the period length.</string>
 </resources>

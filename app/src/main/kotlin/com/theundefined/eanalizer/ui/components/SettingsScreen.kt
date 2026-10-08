@@ -148,6 +148,11 @@ fun SettingsScreen(
             }
         }
         item {
+            SectionCard(title = stringResource(R.string.billing_title)) {
+                BillingSettings(state, viewModel)
+            }
+        }
+        item {
             SectionCard(title = stringResource(R.string.settings_analysis)) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.screen_tariffs)) },

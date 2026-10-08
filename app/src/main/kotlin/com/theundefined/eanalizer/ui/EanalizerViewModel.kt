@@ -17,15 +17,21 @@ import com.theundefined.eanalizer.data.sync.BackgroundSync
 import com.theundefined.eanalizer.domain.Aggregation
 import com.theundefined.eanalizer.domain.AnalysisResult
 import com.theundefined.eanalizer.domain.Analyzer
+import com.theundefined.eanalizer.domain.Billing
 import com.theundefined.eanalizer.domain.Bills
 import com.theundefined.eanalizer.domain.CsvExport
+import com.theundefined.eanalizer.domain.DepositForecast
 import com.theundefined.eanalizer.domain.DynamicTariff
+import com.theundefined.eanalizer.domain.ExtraLoads
 import com.theundefined.eanalizer.domain.HourlyRecord
 import com.theundefined.eanalizer.domain.Insights
+import com.theundefined.eanalizer.domain.LoadAnalysis
 import com.theundefined.eanalizer.domain.NetBilling
 import com.theundefined.eanalizer.domain.NetBillingValuation
 import com.theundefined.eanalizer.domain.Periods
 import com.theundefined.eanalizer.domain.RceAnalysis
+import com.theundefined.eanalizer.domain.SimulationRow
+import com.theundefined.eanalizer.domain.StorageOptions
 import com.theundefined.eanalizer.domain.StorageUsage
 import com.theundefined.eanalizer.domain.TariffTable
 import com.theundefined.eanalizer.domain.XlsxWriter
@@ -107,6 +113,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     private var storageJob: Job? = null
     private var storageDetailJob: Job? = null
     private var dynamicJob: Job? = null
+    private var extraLoadJob: Job? = null
 
     /** Bumped by [refreshPrices] to recompute the analysis with freshly downloaded PSE prices. */
     private val pricesRetry = MutableStateFlow(0)
@@ -167,11 +174,13 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         prefs: AnalysisPrefs,
         tariffs: TariffTable,
     ): Analysis? {
+        val dataStart = all.first().timestamp.toLocalDate()
+        val dataEnd = all.last().timestamp.toLocalDate()
         val (from, to) =
             Periods.resolve(
                 prefs.period,
-                all.first().timestamp.toLocalDate(),
-                all.last().timestamp.toLocalDate(),
+                dataStart,
+                dataEnd,
                 prefs.customFrom?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
                 prefs.customTo?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
             )
@@ -182,25 +191,46 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 ?: tariffs.tariffNames.firstOrNull()
                 ?: return null
         val ratio = prefs.netMeteringRatio.takeIf { prefs.mode == SettlementMode.NET_METERING }
+        val billingFrom =
+            prefs.billingDate
+                ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                ?.coerceAtLeast(dataStart)
+                ?.takeIf { it <= dataEnd }
 
         val netBilling = prefs.mode == SettlementMode.NET_BILLING
-        // Net-billing: up to 12 whole months before the period, so deposits created then (still
-        // valid in the period) are carried over.
-        val historyFrom = from.withDayOfMonth(1).minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
-        val history =
-            if (netBilling) Periods.filter(all, historyFrom, from.withDayOfMonth(1).minusDays(1))
-            else emptyList()
+        // Net-billing: up to 12 whole months before a range, so deposits created then (still
+        // valid in the range) are carried over.
+        fun historyOf(start: LocalDate): List<HourlyRecord> {
+            val month = start.withDayOfMonth(1)
+            return Periods.filter(
+                all,
+                month.minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS),
+                month.minusDays(1)
+            )
+        }
+        val history = if (netBilling) historyOf(from) else emptyList()
+        // Net-billing: the last 12 months up to the end of the data, for the deposit forecast.
+        val nowFrom = maxOf(YearMonth.from(dataEnd).minusMonths(11).atDay(1), dataStart)
 
-        // Net-billing prices (network, cached) before the CPU-heavy part.
+        // Net-billing prices (network, cached) before the CPU-heavy part: the period, the range
+        // since the settlement date and the last 12 months, each with its history.
         var rce = emptyMap<LocalDateTime, Double>()
         var rcem = emptyMap<YearMonth, Double>()
         var pricesUnavailable = false
         if (netBilling) {
-            val months = NetBilling.monthsOf(history + recs)
+            val pricesFrom =
+                maxOf(
+                    listOfNotNull(from, billingFrom, nowFrom).minOf {
+                        it.withDayOfMonth(1).minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
+                    },
+                    dataStart,
+                )
+            val months = NetBilling.monthsOf(Periods.filter(all, pricesFrom, dataEnd))
             rcem = runCatching { repo.rcemPrices(months) }.getOrDefault(emptyMap())
             if (prefs.valuation == NetBillingValuation.RCE) {
-                val rceFrom = history.firstOrNull()?.timestamp?.toLocalDate() ?: from
-                rce = runCatching { repo.rcePrices(rceFrom, to).first }.getOrDefault(emptyMap())
+                rce =
+                    runCatching { repo.rcePrices(pricesFrom, dataEnd).first }
+                        .getOrDefault(emptyMap())
             }
             pricesUnavailable = rcem.isEmpty() && rce.isEmpty()
         }
@@ -230,8 +260,40 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     )
                 else null
 
+            /** Net-billing of [sim] (the selected tariff) starting at [start], with its history. */
+            fun settleFrom(start: LocalDate, sim: List<SimulationRow>, fee: Double) =
+                NetBilling.settle(
+                    sim,
+                    tariffs,
+                    tariff,
+                    rce,
+                    rcem,
+                    prefs.valuation,
+                    fee,
+                    historyOf(start).let { h ->
+                        if (h.isEmpty()) emptyList()
+                        else Analyzer.runFullAnalysis(h, 0.0, tariffs, tariff).simulation
+                    },
+                )
+
             val result = Analyzer.runFullAnalysis(recs, 0.0, tariffs, tariff, ratio)
             val nb = settle(result)
+            val sinceBilling =
+                billingFrom?.let { b ->
+                    Billing.toDate(all, b, dataEnd, tariffs, tariff, ratio) { sim, fee ->
+                        if (netBilling) settleFrom(b, sim, fee) else null
+                    }
+                }
+            val depositsNow =
+                if (!netBilling) null
+                else
+                    Analyzer.runFullAnalysis(
+                            Periods.filter(all, nowFrom, dataEnd),
+                            0.0,
+                            tariffs,
+                            tariff
+                        )
+                        .let { settleFrom(nowFrom, it.simulation, it.fixedFees) }
             val comparison =
                 Analyzer.compareTariffs(recs, 0.0, tariffs, ratio)
                     .map { r ->
@@ -263,24 +325,39 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 selfUseUnit = Insights.selfUse(recs, 1.0),
                 years = Insights.byYear(all, tariffs, tariff),
                 inputs = AnalysisInputs(recs, history, prefs, tariffs, tariff, ratio, rce, rcem),
+                sinceBilling = sinceBilling,
+                depositsNow = depositsNow,
+                depositForecast =
+                    depositsNow?.let {
+                        DepositForecast.forecast(
+                            it.deposits,
+                            YearMonth.from(dataEnd).plusMonths(1),
+                            DepositForecast.expectedCost(it.months),
+                        )
+                    } ?: emptyList(),
+                baseLoad = LoadAnalysis.baseLoad(recs, tariffs, tariff),
+                peaks = LoadAnalysis.peaks(recs),
             )
         }
     }
 
     /**
      * Simulation of [inputs] with a storage of [capacity] kWh ([sim] parameters) on [tariff] and
-     * its total cost (same settlement as the analysis).
+     * its total cost (same settlement as the analysis). [records]/[history] replace the inputs'
+     * ones (e.g. with an extra load).
      */
     private fun runWithStorage(
         inputs: AnalysisInputs,
         sim: StorageSim,
         capacity: Double,
         tariff: String = inputs.tariff,
+        records: List<HourlyRecord> = inputs.records,
+        history: List<HourlyRecord> = inputs.history,
     ): Pair<AnalysisResult, Double> {
         val p = inputs.prefs
         val r =
             Analyzer.runFullAnalysis(
-                inputs.records,
+                records,
                 capacity,
                 inputs.tariffs,
                 tariff,
@@ -289,11 +366,11 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 sim.options,
             )
         if (p.mode != SettlementMode.NET_BILLING) return r to r.totalCost
-        val history =
-            if (inputs.history.isEmpty()) emptyList()
+        val historySim =
+            if (history.isEmpty()) emptyList()
             else
                 Analyzer.runFullAnalysis(
-                        inputs.history,
+                        history,
                         capacity,
                         inputs.tariffs,
                         tariff,
@@ -311,10 +388,61 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     inputs.rcem,
                     p.valuation,
                     r.fixedFees,
-                    history,
+                    historySim,
                 )
                 ?.calkowityKoszt ?: r.totalCost
         return r to cost
+    }
+
+    /** Period cost per tariff without and with the extra load from the report prefs. */
+    fun loadExtraLoad() {
+        val a = _uiState.value.analysis ?: return
+        val load = _uiState.value.reportPrefs.extraLoad()
+        val current = _uiState.value.extraLoad
+        if (current.forAnalysis === a && current.load == load) return
+        extraLoadJob?.cancel()
+        if (load.isEmpty) {
+            _uiState.update { it.copy(extraLoad = ExtraLoadState(forAnalysis = a, load = load)) }
+            return
+        }
+        extraLoadJob =
+            viewModelScope.launch {
+                _uiState.update {
+                    it.copy(
+                        extraLoad = ExtraLoadState(loading = true, forAnalysis = a, load = load)
+                    )
+                }
+                val state =
+                    withContext(Dispatchers.Default) {
+                        val inputs = a.inputs
+                        val extra = ExtraLoads.hourly(inputs.records + inputs.history, load)
+                        val records = ExtraLoads.apply(inputs.records, extra)
+                        val history = ExtraLoads.apply(inputs.history, extra)
+                        val noStorage = StorageSim(1.0, StorageOptions())
+                        ExtraLoadState(
+                            forAnalysis = a,
+                            load = load,
+                            addedKwh = inputs.records.sumOf { extra[it.timestamp] ?: 0.0 },
+                            rows =
+                                a.comparison
+                                    .map { c ->
+                                        val after =
+                                            runWithStorage(
+                                                    inputs,
+                                                    noStorage,
+                                                    0.0,
+                                                    c.tariff,
+                                                    records,
+                                                    history,
+                                                )
+                                                .second
+                                        ExtraLoadRow(c.tariff, c.totalCost, after)
+                                    }
+                                    .sortedBy { it.after },
+                        )
+                    }
+                _uiState.update { it.copy(extraLoad = state) }
+            }
     }
 
     /**
