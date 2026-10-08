@@ -55,6 +55,18 @@ class InsightsTest {
     }
 
     @Test
+    fun heatmapKeepsOnlySelectedHoursButAllMonths() {
+        val h =
+            Insights.heatmap(
+                listOf(rec(at(2024, 5, 6, 12), 1.0, 3.0), rec(at(2024, 6, 1, 0), 2.0, 0.0)),
+                keep = { it.hour < 6 },
+            )
+        assertEquals(listOf(YearMonth.of(2024, 5), YearMonth.of(2024, 6)), h.months)
+        assertTrue(h.values[0][12].isNaN())
+        assertEquals(2.0, h.values[1][0], eps)
+    }
+
+    @Test
     fun byYearNewestFirstWithGaps() {
         val y =
             Insights.byYear(

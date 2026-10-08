@@ -39,6 +39,7 @@ import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.data.local.ReportPrefs
 import com.theundefined.eanalizer.data.local.SettlementMode
 import com.theundefined.eanalizer.domain.AggregateRow
+import com.theundefined.eanalizer.domain.Insights
 import com.theundefined.eanalizer.domain.StorageEconomics
 import com.theundefined.eanalizer.domain.StorageScenario
 import com.theundefined.eanalizer.ui.Analysis
@@ -638,10 +639,35 @@ fun ProfileScreen(state: UiState, onBack: () -> Unit) {
             }
         }
         item {
+            // Zone filter; the colour scale stays that of the whole map so zones are comparable.
+            val zoneNames = shades.keys.toList()
+            var zone by rememberSaveable { mutableStateOf<String?>(null) }
+            val heatmap =
+                remember(a, zone) {
+                    val z = zone
+                    if (z == null || z !in zoneNames) a.heatmap
+                    else
+                        Insights.heatmap(a.inputs.records) {
+                            a.inputs.tariffs.resolve(it, tariff)?.zone == z
+                        }
+                }
             SectionCard(title = stringResource(R.string.profile_heatmap)) {
+                if (zoneNames.size > 1)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        (listOf(null) + zoneNames).forEach { z ->
+                            FilterChip(
+                                selected = zone == z,
+                                onClick = { zone = z },
+                                label = { Text(z ?: stringResource(R.string.heatmap_all_zones)) },
+                            )
+                        }
+                    }
                 HeatmapChart(
-                    rowLabels = a.heatmap.months.map { it.toString() },
-                    values = a.heatmap.values,
+                    rowLabels = heatmap.months.map { it.toString() },
+                    values = heatmap.values,
                     maxAbs = a.heatmap.maxAbs,
                     format = { kwh(it) },
                     underCells = {

@@ -281,6 +281,7 @@
     <string name="profile_heatmap">Hour map</string>
     <string name="heatmap_import">Mostly import</string>
     <string name="heatmap_export">Mostly export</string>
+    <string name="heatmap_all_zones">All</string>
     <string name="heatmap_hint">Tap a cell to see the average balance (import − export)</string>
     <string name="heatmap_value">%1$s, %2$d:00: %3$s</string>
     <!-- Self-consumption -->

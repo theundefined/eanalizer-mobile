@@ -2,6 +2,7 @@ package com.theundefined.eanalizer.domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.YearMonth
 
 /** Average volumes in one hour of the day (kWh, before balancing). */
@@ -77,11 +78,18 @@ object Insights {
         return DayProfile(profile(work), profile(free))
     }
 
-    fun heatmap(records: List<HourlyRecord>): Heatmap {
+    /**
+     * Only records accepted by [keep] are averaged (e.g. one tariff zone); months stay listed even
+     * when nothing in them is kept.
+     */
+    fun heatmap(
+        records: List<HourlyRecord>,
+        keep: (LocalDateTime) -> Boolean = { true },
+    ): Heatmap {
         val byMonth = records.groupBy { YearMonth.from(it.timestamp) }.toSortedMap()
         val values =
             byMonth.values.map { rs ->
-                val byHour = rs.groupBy { it.timestamp.hour }
+                val byHour = rs.filter { keep(it.timestamp) }.groupBy { it.timestamp.hour }
                 DoubleArray(24) { h ->
                     val list = byHour[h].orEmpty()
                     if (list.isEmpty()) Double.NaN

@@ -283,6 +283,7 @@
     <string name="profile_heatmap">Mapa godzin</string>
     <string name="heatmap_import">Przewaga poboru</string>
     <string name="heatmap_export">Przewaga oddania</string>
+    <string name="heatmap_all_zones">Całość</string>
     <string name="heatmap_hint">Dotknij komórki, aby zobaczyć średni bilans (pobór − oddanie)</string>
     <string name="heatmap_value">%1$s, godz. %2$d:00: %3$s</string>
     <!-- Self-consumption -->
