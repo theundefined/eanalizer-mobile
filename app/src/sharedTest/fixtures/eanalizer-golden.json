@@ -1,0 +1,448 @@
+{
+ "days": 457,
+ "first": "2024-10-01 00:00:00",
+ "last": "2025-12-31 23:00:00",
+ "monthly": {
+  "2024-10": [
+   446.621,
+   289.517,
+   410.563,
+   253.459
+  ],
+  "2024-11": [
+   547.212,
+   119.669,
+   517.524,
+   89.981
+  ],
+  "2024-12": [
+   602.827,
+   82.201,
+   577.423,
+   56.797
+  ],
+  "2025-01": [
+   615.335,
+   58.709,
+   591.964,
+   35.338
+  ],
+  "2025-02": [
+   522.753,
+   88.333,
+   497.088,
+   62.668
+  ],
+  "2025-03": [
+   541.061,
+   190.301,
+   510.715,
+   159.955
+  ],
+  "2025-04": [
+   417.263,
+   416.12,
+   375.261,
+   374.118
+  ],
+  "2025-05": [
+   347.621,
+   632.404,
+   296.402,
+   581.185
+  ],
+  "2025-06": [
+   276.32,
+   634.411,
+   222.515,
+   580.606
+  ],
+  "2025-07": [
+   258.771,
+   773.082,
+   202.662,
+   716.973
+  ],
+  "2025-08": [
+   293.695,
+   648.941,
+   241.382,
+   596.628
+  ],
+  "2025-09": [
+   359.323,
+   490.434,
+   312.148,
+   443.259
+  ],
+  "2025-10": [
+   452.051,
+   304.525,
+   414.818,
+   267.292
+  ],
+  "2025-11": [
+   531.395,
+   152.288,
+   499.577,
+   120.47
+  ],
+  "2025-12": [
+   603.088,
+   82.085,
+   579.335,
+   58.332
+  ]
+ },
+ "records": 10961,
+ "surplusDays": 150,
+ "tariffs": {
+  "G11": {
+   "netBilling_rce": {
+    "calkowity_koszt": 4829.482173,
+    "depozyt_pozostaly": 25.957785,
+    "energia_do_zaplaty": 1955.993131,
+    "koszt_dystrybucji": 2221.466042,
+    "koszt_energii": 3827.993388,
+    "pokryte_depozytem": 1872.000257,
+    "przepadly_depozyt": 0.0,
+    "wartosc_depozytu": 1897.958041,
+    "zwrot_nadplaty": 0.0
+   },
+   "netBilling_rcem": {
+    "calkowity_koszt": 4917.497228,
+    "depozyt_pozostaly": 17.93709,
+    "energia_do_zaplaty": 2044.008186,
+    "koszt_dystrybucji": 2221.466042,
+    "koszt_energii": 3827.993388,
+    "pokryte_depozytem": 1783.985201,
+    "przepadly_depozyt": 0.0,
+    "wartosc_depozytu": 1801.922291,
+    "zwrot_nadplaty": 0.0
+   },
+   "netMetering07": {
+    "fixedFees": 652.023,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 3722.003117,
+    "unusedCredit": 0,
+    "zones": {
+     "stala": {
+      "cost": 3069.980117,
+      "oddanie": 4397.061,
+      "pobor": 6249.377
+     }
+    }
+   },
+   "netMetering08": {
+    "fixedFees": 652.023,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 3296.363215,
+    "unusedCredit": 0,
+    "zones": {
+     "stala": {
+      "cost": 2644.340215,
+      "oddanie": 4397.061,
+      "pobor": 6249.377
+     }
+    }
+   },
+   "optimalCapacity": 30.575,
+   "plain": {
+    "fixedFees": 652.023,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 6701.48243,
+    "zones": {
+     "stala": {
+      "cost": 6049.45943,
+      "oddanie": 4397.061,
+      "pobor": 6249.377
+     }
+    }
+   },
+   "storage10": {
+    "fixedFees": 652.023,
+    "gridExport": 1960.937222,
+    "gridImport": 4056.8656,
+    "savings": 2758.4704,
+    "totalCost": 4579.109469,
+    "zones": {
+     "stala": {
+      "cost": 3927.086469,
+      "oddanie": 1960.937222,
+      "pobor": 4056.8656
+     }
+    }
+   },
+   "year2025": {
+    "fixedFees": 521.6184,
+    "gridExport": 3996.824,
+    "gridImport": 4743.867,
+    "savings": 474.809,
+    "totalCost": 5113.729095,
+    "zones": {
+     "stala": {
+      "cost": 4592.110695,
+      "oddanie": 3996.824,
+      "pobor": 4743.867
+     }
+    }
+   }
+  },
+  "G12": {
+   "netBilling_rce": {
+    "calkowity_koszt": 4976.019147,
+    "depozyt_pozostaly": 25.957785,
+    "energia_do_zaplaty": 2144.412899,
+    "koszt_dystrybucji": 2140.100248,
+    "koszt_energii": 4016.413156,
+    "pokryte_depozytem": 1872.000257,
+    "przepadly_depozyt": 0.0,
+    "wartosc_depozytu": 1897.958041,
+    "zwrot_nadplaty": 0.0
+   },
+   "netBilling_rcem": {
+    "calkowity_koszt": 5064.034202,
+    "depozyt_pozostaly": 17.93709,
+    "energia_do_zaplaty": 2232.427954,
+    "koszt_dystrybucji": 2140.100248,
+    "koszt_energii": 4016.413156,
+    "pokryte_depozytem": 1783.985201,
+    "przepadly_depozyt": 0.0,
+    "wartosc_depozytu": 1801.922291,
+    "zwrot_nadplaty": 0.0
+   },
+   "netMetering07": {
+    "fixedFees": 691.506,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 3906.632958,
+    "unusedCredit": 0,
+    "zones": {
+     "dzienna": {
+      "cost": 2892.495514,
+      "oddanie": 3139.828,
+      "pobor": 4813.118
+     },
+     "nocna": {
+      "cost": 322.631443,
+      "oddanie": 1257.233,
+      "pobor": 1436.259
+     }
+    }
+   },
+   "netMetering08": {
+    "fixedFees": 691.506,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 3486.434894,
+    "unusedCredit": 0,
+    "zones": {
+     "dzienna": {
+      "cost": 2545.225514,
+      "oddanie": 3139.828,
+      "pobor": 4813.118
+     },
+     "nocna": {
+      "cost": 249.70338,
+      "oddanie": 1257.233,
+      "pobor": 1436.259
+     }
+    }
+   },
+   "optimalCapacity": 19.624,
+   "plain": {
+    "fixedFees": 691.506,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 6848.019404,
+    "zones": {
+     "dzienna": {
+      "cost": 5323.385518,
+      "oddanie": 3139.828,
+      "pobor": 4813.118
+     },
+     "nocna": {
+      "cost": 833.127886,
+      "oddanie": 1257.233,
+      "pobor": 1436.259
+     }
+    }
+   },
+   "storage10": {
+    "fixedFees": 691.506,
+    "gridExport": 1960.937222,
+    "gridImport": 4056.8656,
+    "savings": 2758.4704,
+    "totalCost": 4624.690406,
+    "zones": {
+     "dzienna": {
+      "cost": 3322.42727,
+      "oddanie": 1155.122556,
+      "pobor": 3003.9595
+     },
+     "nocna": {
+      "cost": 610.757136,
+      "oddanie": 805.814667,
+      "pobor": 1052.9061
+     }
+    }
+   },
+   "year2025": {
+    "fixedFees": 553.2048,
+    "gridExport": 3996.824,
+    "gridImport": 4743.867,
+    "savings": 474.809,
+    "totalCost": 5218.441648,
+    "zones": {
+     "dzienna": {
+      "cost": 4023.838838,
+      "oddanie": 2868.542,
+      "pobor": 3638.138
+     },
+     "nocna": {
+      "cost": 641.39801,
+      "oddanie": 1128.282,
+      "pobor": 1105.729
+     }
+    }
+   }
+  },
+  "G12w": {
+   "netBilling_rce": {
+    "calkowity_koszt": 4240.737396,
+    "depozyt_pozostaly": 26.628885,
+    "energia_do_zaplaty": 1820.472716,
+    "koszt_dystrybucji": 1594.81168,
+    "koszt_energii": 3691.801873,
+    "pokryte_depozytem": 1871.329157,
+    "przepadly_depozyt": 0.0,
+    "wartosc_depozytu": 1897.958041,
+    "zwrot_nadplaty": 0.0
+   },
+   "netBilling_rcem": {
+    "calkowity_koszt": 4328.081351,
+    "depozyt_pozostaly": 17.93709,
+    "energia_do_zaplaty": 1907.816672,
+    "koszt_dystrybucji": 1594.81168,
+    "koszt_energii": 3691.801873,
+    "pokryte_depozytem": 1783.985201,
+    "przepadly_depozyt": 0.0,
+    "wartosc_depozytu": 1801.922291,
+    "zwrot_nadplaty": 0.0
+   },
+   "netMetering07": {
+    "fixedFees": 825.453,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 2946.336003,
+    "unusedCredit": 0,
+    "zones": {
+     "pozaszczytowa": {
+      "cost": 1568.452686,
+      "oddanie": 1149.567,
+      "pobor": 3510.904
+     },
+     "szczytowa": {
+      "cost": 552.430317,
+      "oddanie": 3247.494,
+      "pobor": 2738.473
+     }
+    }
+   },
+   "netMetering08": {
+    "fixedFees": 825.453,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 2494.088782,
+    "unusedCredit": 0,
+    "zones": {
+     "pozaszczytowa": {
+      "cost": 1501.826542,
+      "oddanie": 1149.567,
+      "pobor": 3510.904
+     },
+     "szczytowa": {
+      "cost": 166.80924,
+      "oddanie": 3247.494,
+      "pobor": 2738.473
+     }
+    }
+   },
+   "optimalCapacity": 18.24,
+   "plain": {
+    "fixedFees": 825.453,
+    "gridExport": 4397.061,
+    "gridImport": 6249.377,
+    "savings": 565.959,
+    "totalCost": 6112.066553,
+    "zones": {
+     "pozaszczytowa": {
+      "cost": 2034.835697,
+      "oddanie": 1149.567,
+      "pobor": 3510.904
+     },
+     "szczytowa": {
+      "cost": 3251.777856,
+      "oddanie": 3247.494,
+      "pobor": 2738.473
+     }
+    }
+   },
+   "storage10": {
+    "fixedFees": 825.453,
+    "gridExport": 1960.937222,
+    "gridImport": 4056.8656,
+    "savings": 2758.4704,
+    "totalCost": 4125.895812,
+    "zones": {
+     "pozaszczytowa": {
+      "cost": 1446.25581,
+      "oddanie": 539.801556,
+      "pobor": 2495.3687
+     },
+     "szczytowa": {
+      "cost": 1854.187002,
+      "oddanie": 1421.135667,
+      "pobor": 1561.4969
+     }
+    }
+   },
+   "year2025": {
+    "fixedFees": 660.3624,
+    "gridExport": 3996.824,
+    "gridImport": 4743.867,
+    "savings": 474.809,
+    "totalCost": 4680.360844,
+    "zones": {
+     "pozaszczytowa": {
+      "cost": 1537.996489,
+      "oddanie": 1080.42,
+      "pobor": 2653.658
+     },
+     "szczytowa": {
+      "cost": 2482.001955,
+      "oddanie": 2916.404,
+      "pobor": 2090.209
+     }
+    }
+   }
+  }
+ },
+ "totals": {
+  "oddanie": 4397.061,
+  "oddanie_przed": 4963.02,
+  "pobor": 6249.377,
+  "pobor_przed": 6815.336
+ }
+}

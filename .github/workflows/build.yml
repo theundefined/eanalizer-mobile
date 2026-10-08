@@ -141,17 +141,68 @@ jobs:
         $CLI releases finalize "$RELEASE"
         $CLI deploys new --release "$RELEASE" -e production
 
+  # The app on an emulator with local files only (synthetic Enea CSVs, local-only mode) and the
+  # network switched off: it must start, compute the same costs as eanalizer and open every report
+  # without contacting Enea or PSE.
+  ui-tests:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: set up JDK 21
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Enable KVM
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    - name: Build app and tests
+      run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+    - name: Run instrumented tests offline
+      uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+      with:
+        api-level: 34
+        target: google_apis
+        arch: x86_64
+        disable-animations: true
+        script: |
+          adb shell cmd connectivity airplane-mode enable
+          adb shell svc wifi disable
+          adb shell svc data disable
+          ./gradlew connectedDebugAndroidTest
+
+    - name: Upload test reports
+      if: failure()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ui-test-reports
+        path: app/build/reports/androidTests/
+        retention-days: 7
+
   # Publishes to the Play internal track. GCP identifiers live in google-play
   # environment secrets (masked in public logs). Authenticates via Workload Identity
   # Federation (keyless): GCP only trusts OIDC tokens from this repo, branch main,
   # environment google-play. The service account can only release to testing tracks.
   publish-play:
-    needs: check-and-build
+    needs: [check-and-build, ui-tests]
     if: >-
       !cancelled() && (
         github.event_name == 'workflow_dispatch' ||
         (github.event_name == 'push' &&
          needs.check-and-build.result == 'success' &&
+         needs.ui-tests.result == 'success' &&
          needs.check-and-build.outputs.is_release == 'true')
       )
     runs-on: ubuntu-latest
