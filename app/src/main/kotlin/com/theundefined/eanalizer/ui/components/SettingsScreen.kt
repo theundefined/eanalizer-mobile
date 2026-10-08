@@ -22,6 +22,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,6 +57,7 @@ fun SettingsScreen(
     onLogin: () -> Unit,
     onTariffs: () -> Unit,
     onBack: () -> Unit,
+    snackbarHostState: SnackbarHostState,
 ) {
     val context = LocalContext.current
     val autofill = LocalAutofillManager.current
@@ -67,72 +69,80 @@ fun SettingsScreen(
     var password by remember { mutableStateOf("") }
     var confirmClear by remember { mutableStateOf(false) }
 
-    SubScreen(stringResource(R.string.settings), onBack) {
-        item {
-            SectionCard(title = stringResource(R.string.account)) {
-                Text(
-                    stringResource(if (state.loggedIn) R.string.logged_in else R.string.logged_out),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                SessionInfo(state)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onLogin) {
-                        Text(
-                            stringResource(
-                                if (state.loggedIn) R.string.login_again else R.string.login
+    SubScreen(stringResource(R.string.settings), onBack, snackbarHostState = snackbarHostState) {
+        // Local-only mode never contacts Enea: no account, customer or sync settings.
+        if (!state.localOnly)
+            item {
+                SectionCard(title = stringResource(R.string.account)) {
+                    Text(
+                        stringResource(
+                            if (state.loggedIn) R.string.logged_in else R.string.logged_out
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    SessionInfo(state)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onLogin) {
+                            Text(
+                                stringResource(
+                                    if (state.loggedIn) R.string.login_again else R.string.login
+                                )
                             )
-                        )
-                    }
-                    if (state.loggedIn) {
-                        OutlinedButton(onClick = { viewModel.logout() }) {
-                            Text(stringResource(R.string.logout))
+                        }
+                        if (state.loggedIn) {
+                            OutlinedButton(onClick = { viewModel.logout() }) {
+                                Text(stringResource(R.string.logout))
+                            }
                         }
                     }
-                }
-                MutedText(stringResource(R.string.credentials_info))
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text(stringResource(R.string.email)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier =
-                        Modifier.fillMaxWidth().semantics {
-                            contentType = ContentType.Username + ContentType.EmailAddress
+                    MutedText(stringResource(R.string.credentials_info))
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text(stringResource(R.string.email)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier =
+                            Modifier.fillMaxWidth().semantics {
+                                contentType = ContentType.Username + ContentType.EmailAddress
+                            },
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text(stringResource(R.string.password)) },
+                        placeholder = {
+                            if (state.hasPassword) Text(stringResource(R.string.password_saved))
                         },
-                )
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text(stringResource(R.string.password)) },
-                    placeholder = {
-                        if (state.hasPassword) Text(stringResource(R.string.password_saved))
-                    },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier =
-                        Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
-                )
-                TextButton(
-                    enabled = email.trim() != state.email || password.isNotEmpty(),
-                    onClick = {
-                        // An empty password field keeps the stored one unless the e-mail changed.
-                        viewModel.saveCredentials(
-                            email,
-                            password,
-                            keepPassword = password.isEmpty()
-                        )
-                        // Offers saving the e-mail/password in the user's password manager.
-                        if (password.isNotEmpty()) autofill?.commit()
-                        password = ""
-                    },
-                ) {
-                    Text(stringResource(R.string.save))
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier =
+                            Modifier.fillMaxWidth().semantics {
+                                contentType = ContentType.Password
+                            },
+                    )
+                    TextButton(
+                        enabled = email.trim() != state.email || password.isNotEmpty(),
+                        onClick = {
+                            // An empty password field keeps the stored one unless the e-mail
+                            // changed.
+                            viewModel.saveCredentials(
+                                email,
+                                password,
+                                keepPassword = password.isEmpty()
+                            )
+                            // Offers saving the e-mail/password in the user's password manager.
+                            if (password.isNotEmpty()) autofill?.commit()
+                            password = ""
+                        },
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
                 }
             }
-        }
-        if (state.customers.size > 1) {
+        item { DataFilesCard(state, viewModel) }
+        if (!state.localOnly && state.customers.size > 1) {
             item {
                 SectionCard(title = stringResource(R.string.customer)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -174,45 +184,47 @@ fun SettingsScreen(
                 PvProductionField(state, viewModel)
             }
         }
-        item {
-            SectionCard(title = stringResource(R.string.background_sync)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.background_sync_switch))
-                        MutedText(stringResource(R.string.background_sync_info))
-                    }
-                    Switch(
-                        checked = state.backgroundSync,
-                        onCheckedChange = { on ->
-                            if (
-                                on &&
-                                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                    !BackgroundSync.canNotify(context)
-                            )
-                                notificationPermission.launch(
-                                    Manifest.permission.POST_NOTIFICATIONS
+        if (!state.localOnly)
+            item {
+                SectionCard(title = stringResource(R.string.background_sync)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.background_sync_switch))
+                            MutedText(stringResource(R.string.background_sync_info))
+                        }
+                        Switch(
+                            checked = state.backgroundSync,
+                            onCheckedChange = { on ->
+                                if (
+                                    on &&
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        !BackgroundSync.canNotify(context)
                                 )
-                            else viewModel.setBackgroundSync(on)
-                        },
-                    )
+                                    notificationPermission.launch(
+                                        Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                else viewModel.setBackgroundSync(on)
+                            },
+                        )
+                    }
+                    // Re-checked on every composition (the user may change it in system settings).
+                    if (state.backgroundSync && !BackgroundSync.canNotify(context))
+                        Text(
+                            stringResource(R.string.background_sync_no_notifications),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                 }
-                // Re-checked on every composition (the user may change it in system settings).
-                if (state.backgroundSync && !BackgroundSync.canNotify(context))
-                    Text(
-                        stringResource(R.string.background_sync_no_notifications),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
             }
-        }
         item {
             SectionCard {
-                OutlinedButton(
-                    onClick = { viewModel.sync(force = true) },
-                    enabled = state.loggedIn && !state.syncing,
-                ) {
-                    Text(stringResource(R.string.force_sync))
-                }
+                if (!state.localOnly)
+                    OutlinedButton(
+                        onClick = { viewModel.sync(force = true) },
+                        enabled = state.loggedIn && !state.syncing,
+                    ) {
+                        Text(stringResource(R.string.force_sync))
+                    }
                 OutlinedButton(onClick = { confirmClear = true }) {
                     Text(
                         stringResource(R.string.clear_all),

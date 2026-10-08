@@ -60,4 +60,22 @@ class EneaCsvParserTest {
         assertEquals(listOf(at(2024, 1, 1), at(2024, 1, 2), at(2024, 1, 3)), m.map { it.timestamp })
         assertEquals(9.0, m[1].poborPrzed, 0.0)
     }
+
+    @Test
+    fun decodesFileEncodings() {
+        val csv = TestData.ENEA_CSV + "ąę"
+        fun bom(vararg b: Int) = b.map { it.toByte() }.toByteArray()
+        fun decode(b: ByteArray) = EneaCsvParser.decode(b)
+        assertEquals(csv, decode(csv.toByteArray(Charsets.UTF_8)))
+        assertEquals(csv, decode(bom(0xEF, 0xBB, 0xBF) + csv.toByteArray(Charsets.UTF_8)))
+        assertEquals(csv, decode(bom(0xFF, 0xFE) + csv.toByteArray(Charsets.UTF_16LE)))
+        assertEquals(csv, decode(bom(0xFE, 0xFF) + csv.toByteArray(Charsets.UTF_16BE)))
+        assertEquals(csv, decode(csv.toByteArray(Charsets.UTF_16LE)))
+        assertEquals(csv, decode(csv.toByteArray(charset("windows-1250"))))
+        assertEquals(
+            TestData.records,
+            EneaCsvParser.parse(decode(csv.toByteArray(Charsets.UTF_16LE)))
+        )
+        assertEquals("", decode(ByteArray(0)))
+    }
 }

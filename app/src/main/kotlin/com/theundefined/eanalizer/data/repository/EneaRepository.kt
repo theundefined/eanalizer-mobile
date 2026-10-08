@@ -2,8 +2,11 @@ package com.theundefined.eanalizer.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.webkit.WebSettings
 import com.theundefined.eanalizer.data.local.DataFiles
+import com.theundefined.eanalizer.data.local.InvalidCsvException
+import com.theundefined.eanalizer.data.local.LocalData
 import com.theundefined.eanalizer.data.local.SettingsStore
 import com.theundefined.eanalizer.data.local.WebViewCookieJar
 import com.theundefined.eanalizer.data.remote.EneaClient
@@ -12,9 +15,10 @@ import com.theundefined.eanalizer.data.remote.EneaMeterInfo
 import com.theundefined.eanalizer.data.remote.EneaProtocolException
 import com.theundefined.eanalizer.data.remote.RceClient
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
-import com.theundefined.eanalizer.domain.HourlyRecord
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.io.OutputStream
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -32,6 +36,21 @@ class CustomerSelectionRequiredException(val customers: List<EneaCustomer>) :
 class NoMeterDataException : Exception("no customer with hourly data")
 
 private val syncLock = Mutex()
+
+/** Imported files are a year of hourly rows (~1 MB); anything far larger is not an Enea CSV. */
+private const val MAX_IMPORT_BYTES = 20 * 1024 * 1024
+
+/** `readNBytes` needs API 33. */
+private fun InputStream.readAtMost(limit: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    val buf = ByteArray(64 * 1024)
+    while (out.size() < limit) {
+        val n = read(buf, 0, minOf(buf.size, limit - out.size()))
+        if (n < 0) break
+        out.write(buf, 0, n)
+    }
+    return out.toByteArray()
+}
 
 /** Result of a sync: years downloaded now and years that Enea returned empty. */
 data class SyncResult(val downloaded: List<Int>, val empty: List<Int>)
@@ -51,10 +70,46 @@ class EneaRepository(context: Context) {
     private val enea by lazy { EneaClient(cookieJar) { userAgent } }
     private val rce = RceClient(File(appContext.filesDir, "prices"))
 
-    suspend fun loadRecords(): List<HourlyRecord> =
-        withContext(Dispatchers.IO) { files.loadRecords() }
+    suspend fun loadData(): LocalData = withContext(Dispatchers.IO) { files.load() }
 
-    fun dataFiles(): List<DataFiles.YearFile> = files.list()
+    /**
+     * Imports CSV files picked by the user (e.g. downloaded from the eBOK page by hand). Returns
+     * the names that were rejected ([InvalidCsvException], too large or unreadable).
+     */
+    suspend fun importFiles(uris: List<Uri>): List<String> =
+        withContext(Dispatchers.IO) {
+            uris.mapNotNull { uri ->
+                val name = displayName(uri) ?: uri.lastPathSegment ?: "dane.csv"
+                try {
+                    val bytes =
+                        appContext.contentResolver.openInputStream(uri)?.use {
+                            it.readAtMost(MAX_IMPORT_BYTES + 1)
+                        } ?: throw IOException("cannot open $uri")
+                    if (bytes.size > MAX_IMPORT_BYTES) throw IOException("too large")
+                    files.import(name, bytes)
+                    null
+                } catch (e: InvalidCsvException) {
+                    name
+                } catch (e: IOException) {
+                    name
+                } catch (e: SecurityException) {
+                    name
+                }
+            }
+        }
+
+    private fun displayName(uri: Uri): String? =
+        runCatching {
+                appContext.contentResolver
+                    .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            }
+            .getOrNull()
+
+    /** The stored data file [name]; null when it is gone. */
+    fun dataFile(name: String, imported: Boolean): File? = files.file(name, imported)
+
+    fun deleteDataFile(name: String, imported: Boolean) = files.delete(name, imported)
 
     /**
      * Downloads missing/outdated years. With [force] every available year is downloaded again.
@@ -70,6 +125,7 @@ class EneaRepository(context: Context) {
         }
 
     private fun syncLocked(force: Boolean, onYear: (year: Int) -> Unit): SyncResult {
+        if (settings.localOnly) return SyncResult(emptyList(), emptyList())
         if (!enea.isLoggedIn()) {
             settings.loggedIn = false
             throw SessionExpiredException()
@@ -134,10 +190,10 @@ class EneaRepository(context: Context) {
         return info
     }
 
-    /** Switching customers drops data downloaded for the previous one. */
+    /** Switching customers drops data downloaded for the previous one (imported files stay). */
     fun chooseCustomer(number: String) {
         if (settings.customerNumber != number) {
-            files.clear()
+            files.clearDownloaded()
             settings.lastSync = 0L
         }
         settings.customerNumber = number
@@ -160,7 +216,7 @@ class EneaRepository(context: Context) {
         settings.sessionCheckedAt = 0L
     }
 
-    /** Removes downloaded data, session, credentials and customer choice. */
+    /** Removes downloaded and imported data, session, credentials and customer choice. */
     fun clearAll() {
         logout()
         files.clear()

@@ -174,6 +174,11 @@ class SettingsStore(context: Context) {
         get() = plain.getBoolean(KEY_BACKGROUND_SYNC, false)
         set(v) = plain.edit().putBoolean(KEY_BACKGROUND_SYNC, v).apply()
 
+    /** Use only the stored/imported files; never contact Enea. */
+    var localOnly: Boolean
+        get() = plain.getBoolean(KEY_LOCAL_ONLY, false)
+        set(v) = plain.edit().putBoolean(KEY_LOCAL_ONLY, v).apply()
+
     /** The background job already notified about an expired session (reset on login). */
     var sessionExpiryNotified: Boolean
         get() = plain.getBoolean(KEY_SESSION_NOTIFIED, false)
@@ -262,6 +267,7 @@ class SettingsStore(context: Context) {
         const val KEY_LOGGED_IN = "logged_in"
         const val KEY_REPORT_PREFS = "report_prefs"
         const val KEY_BACKGROUND_SYNC = "background_sync"
+        const val KEY_LOCAL_ONLY = "local_only"
         const val KEY_SESSION_NOTIFIED = "session_expiry_notified"
         const val KEY_LOGIN_AT = "login_at"
         const val KEY_SESSION_CHECKED_AT = "session_checked_at"

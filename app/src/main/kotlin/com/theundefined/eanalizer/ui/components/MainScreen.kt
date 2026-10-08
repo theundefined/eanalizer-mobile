@@ -45,6 +45,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -104,6 +105,21 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                     )
                 is UiEvent.Saved ->
                     snackbarHostState.showSnackbar(resources.getString(R.string.export_saved))
+                is UiEvent.Imported ->
+                    snackbarHostState.showSnackbar(
+                        listOfNotNull(
+                                resources.getString(R.string.import_done, event.count),
+                                event.rejected
+                                    .takeIf { it.isNotEmpty() }
+                                    ?.let {
+                                        resources.getString(
+                                            R.string.import_rejected,
+                                            it.joinToString(", "),
+                                        )
+                                    },
+                            )
+                            .joinToString("\n")
+                    )
                 is UiEvent.LoginRequired -> currentScreen = "login"
                 is UiEvent.Error ->
                     snackbarHostState.showSnackbar(
@@ -187,6 +203,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                 onLogin = { currentScreen = "login" },
                 onTariffs = { currentScreen = "tariffs" },
                 onBack = back,
+                snackbarHostState = snackbarHostState,
             )
             return
         }
@@ -244,15 +261,17 @@ fun MainScreen(viewModel: EanalizerViewModel) {
         }
     }
 
+    val importCsv = rememberCsvImport(viewModel)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     if (state.hasData) ExportMenu(state, viewModel)
-                    IconButton(onClick = { viewModel.sync() }, enabled = !state.syncing) {
-                        Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
-                    }
+                    if (!state.localOnly)
+                        IconButton(onClick = { viewModel.sync() }, enabled = !state.syncing) {
+                            Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
+                        }
                     IconButton(onClick = { currentScreen = "settings" }) {
                         Icon(Icons.Default.Settings, stringResource(R.string.settings))
                     }
@@ -275,6 +294,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                     StatusCard(
                         state,
                         onLogin = { currentScreen = "login" },
+                        onImport = importCsv,
                         onSync = { viewModel.sync() },
                         onRefreshPrices = { viewModel.refreshPrices() },
                     )
@@ -305,6 +325,7 @@ fun MainScreen(viewModel: EanalizerViewModel) {
 private fun StatusCard(
     state: UiState,
     onLogin: () -> Unit,
+    onImport: () -> Unit,
     onSync: () -> Unit,
     onRefreshPrices: () -> Unit,
 ) {
@@ -314,9 +335,20 @@ private fun StatusCard(
     }
     if (!state.hasData) {
         SectionCard(title = stringResource(R.string.welcome_title)) {
+            if (state.localOnly) {
+                Text(stringResource(R.string.welcome_text_local))
+                if (state.importing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                else Button(onClick = onImport) { Text(stringResource(R.string.import_files)) }
+                return@SectionCard
+            }
             Text(stringResource(R.string.welcome_text))
             if (state.syncing) SyncProgress(state)
-            else Button(onClick = onLogin) { Text(stringResource(R.string.login)) }
+            else if (state.importing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            else {
+                Button(onClick = onLogin) { Text(stringResource(R.string.login)) }
+                MutedText(stringResource(R.string.welcome_or_import))
+                OutlinedButton(onClick = onImport) { Text(stringResource(R.string.import_files)) }
+            }
         }
         return
     }
@@ -329,18 +361,21 @@ private fun StatusCard(
             ),
             style = MaterialTheme.typography.titleSmall,
         )
-        state.customerNumber?.let { MutedText(stringResource(R.string.customer_label, it)) }
-        RefreshRow(
-            text =
-                stringResource(
-                    R.string.last_sync,
-                    if (state.lastSync > 0) dateTime(state.lastSync)
-                    else stringResource(R.string.never),
-                ),
-            description = stringResource(R.string.refresh_enea),
-            enabled = !state.syncing,
-            onClick = onSync,
-        )
+        if (state.localOnly) MutedText(stringResource(R.string.local_only_card))
+        else {
+            state.customerNumber?.let { MutedText(stringResource(R.string.customer_label, it)) }
+            RefreshRow(
+                text =
+                    stringResource(
+                        R.string.last_sync,
+                        if (state.lastSync > 0) dateTime(state.lastSync)
+                        else stringResource(R.string.never),
+                    ),
+                description = stringResource(R.string.refresh_enea),
+                enabled = !state.syncing,
+                onClick = onSync,
+            )
+        }
         RefreshRow(
             text =
                 if (state.pricesRefreshing) stringResource(R.string.prices_refreshing)
@@ -355,8 +390,13 @@ private fun StatusCard(
             onClick = onRefreshPrices,
         )
         if (state.pricesRefreshing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (state.localOnly) return@SectionCard
         if (state.syncing) SyncProgress(state)
-        else if (!state.loggedIn) {
+        else if (!state.loggedIn && state.loginAt == 0L && state.sessionCheckedAt == 0L) {
+            // Data comes from imported files only; there never was a session.
+            MutedText(stringResource(R.string.not_connected_card))
+            Button(onClick = onLogin) { Text(stringResource(R.string.login)) }
+        } else if (!state.loggedIn) {
             Text(
                 stringResource(R.string.session_expired_card),
                 color = MaterialTheme.colorScheme.error,

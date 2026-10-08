@@ -191,7 +191,11 @@ fun DataScreen(state: UiState, onBack: () -> Unit) {
     var month by rememberSaveable { mutableStateOf<String?>(null) }
     val days = remember(a, year, month) { a?.let { dailyIn(it, year, month) }.orEmpty() }
     SubScreen(stringResource(R.string.screen_data), onBack) {
-        item { MutedText(stringResource(R.string.data_files, state.dataYears.joinToString(", "))) }
+        item {
+            MutedText(
+                stringResource(R.string.data_files, state.files.joinToString(", ") { it.name })
+            )
+        }
         if (a == null) return@SubScreen
         item { PeriodInfo(a) }
         item {

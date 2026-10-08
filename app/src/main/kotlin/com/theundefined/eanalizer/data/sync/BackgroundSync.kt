@@ -62,7 +62,7 @@ object BackgroundSync {
     internal suspend fun run(context: Context) {
         val repo = EneaRepository(context)
         val settings = repo.settings
-        if (!settings.backgroundSync || !settings.loggedIn) return
+        if (!settings.backgroundSync || !settings.loggedIn || settings.localOnly) return
         if (isToday(settings.lastSync)) return
         try {
             val res = repo.sync()

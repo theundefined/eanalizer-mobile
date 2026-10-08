@@ -145,7 +145,7 @@
     <string name="nb_monthly">Rozliczenie net-billing</string>
     <string name="nb_new_deposit">Nowy depozyt</string>
     <string name="nb_balance">Saldo depozytu</string>
-    <string name="data_files">Pobrane lata: %1$s</string>
+    <string name="data_files">Pliki z danymi: %1$s</string>
     <string name="missing_hours_list">Brakujące godziny (%1$d)</string>
     <string name="no_missing_hours">Brak luk w danych</string>
     <string name="and_more">…i %1$d więcej</string>
@@ -186,7 +186,7 @@
     <string name="choose_customer_info">Kilku klientów na koncie ma godzinowe dane z licznika. Wybierz, czyje dane pobrać.</string>
     <string name="force_sync">Pobierz wszystkie dane ponownie</string>
     <string name="clear_all">Usuń wszystkie dane</string>
-    <string name="clear_all_confirm">Usunąć pobrane dane, sesję i zapisane dane logowania?</string>
+    <string name="clear_all_confirm">Usunąć pobrane i dodane pliki z danymi, sesję i zapisane dane logowania?</string>
     <string name="about">eAnalizer Mobile %1$s — nieoficjalna aplikacja, niepowiązana z Enea S.A. Wyniki są szacunkowe. Licencja GPL-3.0.</string>
 
     <!-- Login -->
@@ -421,4 +421,25 @@
     <string name="extraload_after">Z dodatkowym</string>
     <string name="extraload_diff">Różnica</string>
     <string name="extraload_result_hint">• obecna taryfa. Koszt okresu z wybranym sposobem rozliczenia, bez magazynu; wartości roczne przeliczone z długości okresu.</string>
+    <!-- Data files -->
+    <string name="files_title">Pliki z danymi</string>
+    <string name="local_only_switch">Tylko pliki z telefonu</string>
+    <string name="local_only_info">Bez łączenia z Enea — analiza samych zapisanych i dodanych plików CSV. Logowanie i synchronizacja są wyłączone.</string>
+    <string name="files_info">Godzinowe pliki CSV z Enea. Możesz dodać pliki pobrane ręcznie z eBOK — logowanie w aplikacji nie jest wtedy potrzebne. Gdy pliki obejmują te same godziny, liczy się nowszy.</string>
+    <string name="files_empty">Brak zapisanych plików.</string>
+    <string name="file_downloaded">Pobrany z Enea %1$s</string>
+    <string name="file_imported">Dodany %1$s</string>
+    <string name="file_range">%1$s – %2$s, %3$d h</string>
+    <string name="file_invalid">Brak poprawnych danych</string>
+    <string name="file_menu">Akcje pliku</string>
+    <string name="import_files">Dodaj pliki CSV</string>
+    <string name="importing">Dodawanie plików…</string>
+    <string name="import_done">Dodane pliki: %1$d</string>
+    <string name="import_rejected">Pominięte (to nie są godzinowe CSV z Enea): %1$s</string>
+    <string name="delete_file_confirm">Usunąć plik %1$s?</string>
+    <string name="delete_file_downloaded">Przy następnej synchronizacji zostanie pobrany ponownie.</string>
+    <string name="welcome_text_local">Tryb plików z telefonu: dodaj godzinowe pliki CSV pobrane z eBOK Enea.</string>
+    <string name="welcome_or_import">Masz już pliki CSV z eBOK? Dodaj je bez logowania.</string>
+    <string name="local_only_card">Tryb plików z telefonu — dane nie są pobierane z Enea.</string>
+    <string name="not_connected_card">Brak połączenia z Enea — pokazuję dodane pliki. Zaloguj się, aby pobierać dane automatycznie, albo włącz w ustawieniach tryb plików z telefonu.</string>
 </resources>

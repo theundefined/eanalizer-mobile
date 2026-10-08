@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theundefined.eanalizer.data.local.AnalysisPrefs
+import com.theundefined.eanalizer.data.local.DataFileInfo
 import com.theundefined.eanalizer.data.local.ReportPrefs
 import com.theundefined.eanalizer.data.local.SettlementMode
 import com.theundefined.eanalizer.data.local.StorageSim
@@ -84,6 +85,9 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         data class Share(val file: File, val mimeType: String) : UiEvent
 
         data object Saved : UiEvent
+
+        /** Files were imported; [rejected] are names that are not Enea hourly CSVs. */
+        data class Imported(val count: Int, val rejected: List<String>) : UiEvent
     }
 
     private val _uiState =
@@ -99,6 +103,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 customerNumber = settings.customerNumber,
                 reportPrefs = settings.reportPrefs,
                 backgroundSync = settings.backgroundSync,
+                localOnly = settings.localOnly,
             )
         )
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -129,7 +134,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         // data was not downloaded today yet.
         viewModelScope.launch {
             reloadRecords()
-            if (settings.loggedIn && !isToday(settings.lastSync)) sync(quiet = true)
+            if (!settings.localOnly && settings.loggedIn && !isToday(settings.lastSync))
+                sync(quiet = true)
         }
         viewModelScope.launch {
             // Only records/prefs/tariffs matter; other state changes must not restart analysis.
@@ -154,14 +160,15 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private suspend fun reloadRecords() {
-        val recs = repo.loadRecords()
+        val data = repo.loadData()
+        val recs = data.records
         _uiState.update {
             it.copy(
                 loadingLocal = false,
                 hasData = recs.isNotEmpty(),
                 dataStart = recs.firstOrNull()?.timestamp?.toLocalDate(),
                 dataEnd = recs.lastOrNull()?.timestamp?.toLocalDate(),
-                dataYears = repo.dataFiles().map { f -> f.year },
+                files = data.files,
                 years = Insights.byYear(recs),
                 rce = RceState(),
             )
@@ -599,6 +606,63 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             }
     }
 
+    /** Local-only mode: analyse just the stored/imported files, without logging in to Enea. */
+    fun setLocalOnly(enabled: Boolean) {
+        settings.localOnly = enabled
+        _uiState.update { it.copy(localOnly = enabled) }
+        if (enabled) syncJob?.cancel() else if (settings.loggedIn) sync(quiet = true)
+    }
+
+    /** Adds CSV files picked by the user (e.g. downloaded by hand from the eBOK page). */
+    fun importFiles(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(importing = true) }
+            try {
+                val rejected = repo.importFiles(uris)
+                reloadRecords()
+                _events.emit(UiEvent.Imported(uris.size - rejected.size, rejected))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _events.emit(UiEvent.Error(ErrorKind.UNKNOWN, e.message))
+            } finally {
+                _uiState.update { it.copy(importing = false) }
+            }
+        }
+    }
+
+    fun deleteDataFile(file: DataFileInfo) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repo.deleteDataFile(file.name, file.imported) }
+            reloadRecords()
+        }
+    }
+
+    /** Saves the stored file as is to [target] (a document picked by the user), or shares it. */
+    fun exportDataFile(file: DataFileInfo, target: Uri? = null) {
+        viewModelScope.launch {
+            try {
+                val src =
+                    repo.dataFile(file.name, file.imported)
+                        ?: throw IOException("missing ${file.name}")
+                withContext(Dispatchers.IO) {
+                    if (target != null) repo.copyTo(src, target)
+                    else {
+                        val copy =
+                            repo.exportFile(file.name) { out ->
+                                src.inputStream().use { it.copyTo(out) }
+                            }
+                        _events.emit(UiEvent.Share(copy, "text/csv"))
+                    }
+                }
+                if (target != null) _events.emit(UiEvent.Saved)
+            } catch (e: IOException) {
+                _events.emit(UiEvent.Error(ErrorKind.UNKNOWN, e.message))
+            }
+        }
+    }
+
     fun setBackgroundSync(enabled: Boolean) {
         settings.backgroundSync = enabled
         BackgroundSync.schedule(getApplication(), enabled)
@@ -611,9 +675,24 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update { it.copy(reportPrefs = p) }
     }
 
-    /** Downloads new data. [quiet] = background sync on start (no login prompt). */
+    /**
+     * Downloads new data. [quiet] = background sync on start (no login prompt). In the local-only
+     * mode it just re-reads the stored files.
+     */
     fun sync(force: Boolean = false, quiet: Boolean = false) {
         if (syncJob?.isActive == true) return
+        if (settings.localOnly) {
+            syncJob =
+                viewModelScope.launch {
+                    _uiState.update { it.copy(syncing = true) }
+                    try {
+                        reloadRecords()
+                    } finally {
+                        _uiState.update { it.copy(syncing = false) }
+                    }
+                }
+            return
+        }
         syncJob =
             viewModelScope.launch {
                 _uiState.update { it.copy(syncing = true) }

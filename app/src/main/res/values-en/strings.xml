@@ -143,7 +143,7 @@
     <string name="nb_monthly">Net-billing settlement</string>
     <string name="nb_new_deposit">New deposit</string>
     <string name="nb_balance">Deposit balance</string>
-    <string name="data_files">Downloaded years: %1$s</string>
+    <string name="data_files">Data files: %1$s</string>
     <string name="missing_hours_list">Missing hours (%1$d)</string>
     <string name="no_missing_hours">No gaps in data</string>
     <string name="and_more">…and %1$d more</string>
@@ -184,7 +184,7 @@
     <string name="choose_customer_info">Several customers on the account have hourly meter data. Choose whose data to download.</string>
     <string name="force_sync">Download all data again</string>
     <string name="clear_all">Delete all data</string>
-    <string name="clear_all_confirm">Delete downloaded data, the session and stored credentials?</string>
+    <string name="clear_all_confirm">Delete downloaded and added data files, the session and stored credentials?</string>
     <string name="about">eAnalizer Mobile %1$s — unofficial app, not affiliated with Enea S.A. Results are estimates. GPL-3.0 license.</string>
 
     <!-- Login -->
@@ -419,4 +419,25 @@
     <string name="extraload_after">With extra</string>
     <string name="extraload_diff">Difference</string>
     <string name="extraload_result_hint">• current tariff. Period cost with the selected settlement, without storage; annual values scaled from the period length.</string>
+    <!-- Data files -->
+    <string name="files_title">Data files</string>
+    <string name="local_only_switch">Only files on this device</string>
+    <string name="local_only_info">No connection to Enea — only the stored and added CSV files are analysed. Login and sync are off.</string>
+    <string name="files_info">Hourly CSV files from Enea. You can add files downloaded by hand from eBOK — then logging in in the app is not needed. Where files cover the same hours, the newer one counts.</string>
+    <string name="files_empty">No stored files.</string>
+    <string name="file_downloaded">Downloaded from Enea %1$s</string>
+    <string name="file_imported">Added %1$s</string>
+    <string name="file_range">%1$s – %2$s, %3$d h</string>
+    <string name="file_invalid">No valid data</string>
+    <string name="file_menu">File actions</string>
+    <string name="import_files">Add CSV files</string>
+    <string name="importing">Adding files…</string>
+    <string name="import_done">Files added: %1$d</string>
+    <string name="import_rejected">Skipped (not Enea hourly CSVs): %1$s</string>
+    <string name="delete_file_confirm">Delete the file %1$s?</string>
+    <string name="delete_file_downloaded">It will be downloaded again on the next sync.</string>
+    <string name="welcome_text_local">Device files mode: add hourly CSV files downloaded from Enea eBOK.</string>
+    <string name="welcome_or_import">Already have CSV files from eBOK? Add them without logging in.</string>
+    <string name="local_only_card">Device files mode — data is not downloaded from Enea.</string>
+    <string name="not_connected_card">Not connected to Enea — showing the added files. Log in to download data automatically, or turn on the device files mode in Settings.</string>
 </resources>

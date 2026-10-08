@@ -1,5 +1,9 @@
 package com.theundefined.eanalizer.domain
 
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.Charset
+import java.nio.charset.CodingErrorAction
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -48,6 +52,41 @@ object EneaCsvParser {
             out += HourlyRecord(ts, nums[0]!!, nums[1]!!, nums[2]!!, nums[3]!!)
         }
         return out
+    }
+
+    /**
+     * Decodes a stored or imported file: UTF-8 or UTF-16 with a BOM, UTF-16 without a BOM (detected
+     * by NUL bytes), strict UTF-8, otherwise Windows-1250.
+     */
+    fun decode(bytes: ByteArray): String {
+        fun from(offset: Int, cs: Charset) = String(bytes, offset, bytes.size - offset, cs)
+        fun startsWith(vararg b: Int) =
+            bytes.size >= b.size && b.indices.all { bytes[it] == b[it].toByte() }
+        return when {
+            startsWith(0xEF, 0xBB, 0xBF) -> from(3, Charsets.UTF_8)
+            startsWith(0xFF, 0xFE) -> from(2, Charsets.UTF_16LE)
+            startsWith(0xFE, 0xFF) -> from(2, Charsets.UTF_16BE)
+            else -> {
+                val sample = bytes.take(4096)
+                val zeros = { odd: Int ->
+                    sample.filterIndexed { i, b -> i % 2 == odd && b == 0.toByte() }.size
+                }
+                when {
+                    zeros(1) > sample.size / 4 -> from(0, Charsets.UTF_16LE)
+                    zeros(0) > sample.size / 4 -> from(0, Charsets.UTF_16BE)
+                    else ->
+                        try {
+                            Charsets.UTF_8.newDecoder()
+                                .onMalformedInput(CodingErrorAction.REPORT)
+                                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                                .decode(ByteBuffer.wrap(bytes))
+                                .toString()
+                        } catch (e: CharacterCodingException) {
+                            from(0, Charset.forName("windows-1250"))
+                        }
+                }
+            }
+        }
     }
 
     /** Parses `="2024-05-01 04:59"`-style values, floored to the hour. */

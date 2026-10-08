@@ -1,6 +1,7 @@
 package com.theundefined.eanalizer.ui
 
 import com.theundefined.eanalizer.data.local.AnalysisPrefs
+import com.theundefined.eanalizer.data.local.DataFileInfo
 import com.theundefined.eanalizer.data.local.ReportPrefs
 import com.theundefined.eanalizer.data.local.StorageSim
 import com.theundefined.eanalizer.data.remote.EneaCustomer
@@ -183,7 +184,11 @@ data class UiState(
     val analyzing: Boolean = false,
     val analysis: Analysis? = null,
     val rce: RceState = RceState(),
-    val dataYears: List<Int> = emptyList(),
+    /** Stored data files (Enea downloads first, then imported ones). */
+    val files: List<DataFileInfo> = emptyList(),
+    /** Use only stored/imported files, never contact Enea. */
+    val localOnly: Boolean = false,
+    val importing: Boolean = false,
     /** Last successful PSE price download (epoch ms), 0 = never. */
     val pricesFetchedAt: Long = 0L,
     val pricesRefreshing: Boolean = false,
