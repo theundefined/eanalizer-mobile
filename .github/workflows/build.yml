@@ -141,9 +141,9 @@ jobs:
         $CLI releases finalize "$RELEASE"
         $CLI deploys new --release "$RELEASE" -e production
 
-  # The app on an emulator with local files only (synthetic Enea CSVs, local-only mode) and the
-  # network switched off: it must start, compute the same costs as eanalizer and open every report
-  # without contacting Enea or PSE.
+  # The app on an emulator with local files only (synthetic Enea CSVs, local-only mode, Polish
+  # UI): it must start, compute the same costs as eanalizer and open every report without
+  # contacting Enea; public PSE prices are downloaded as in real use. Screenshots → artifact.
   ui-tests:
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -170,20 +170,17 @@ jobs:
     - name: Build app and tests
       run: ./gradlew assembleDebug assembleDebugAndroidTest
 
-    - name: Run instrumented tests offline
+    - name: Run instrumented tests
       uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
       with:
         api-level: 34
         target: google_apis
         arch: x86_64
+        profile: pixel_6
         disable-animations: true
-        script: |
-          adb shell cmd connectivity airplane-mode enable
-          adb shell svc wifi disable
-          adb shell svc data disable
-          ./gradlew connectedDebugAndroidTest
+        script: ./gradlew connectedDebugAndroidTest
 
-    # Screens captured by OfflineAppTest (also on failure - shows what was on screen).
+    # Screens captured by LocalFilesAppTest (also on failure - shows what was on screen).
     - name: Upload screenshots
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

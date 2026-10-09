@@ -1,7 +1,11 @@
 package com.theundefined.eanalizer
 
+import android.app.LocaleManager
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.os.Build
+import android.os.LocaleList
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -25,24 +29,35 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.theundefined.eanalizer.ui.zl
 import java.io.File
+import java.util.Locale
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestName
 import org.junit.runner.RunWith
 
 /**
- * End-to-end check of the app on local files only: the synthetic Enea CSVs
- * (`src/sharedTest/fixtures`) are put where imported files live, the app runs in local-only mode
- * (never contacts Enea; CI also disables the emulator's network) and must show the same costs as
- * the Python eanalizer for the default analysis (G11, last 365 days = 2025).
+ * End-to-end check of the app on local files only, in Polish: the synthetic Enea CSVs
+ * (`src/sharedTest/fixtures`) are put where imported files live and the app runs in local-only
+ * mode, so it never contacts Enea. It must show the same costs as the Python eanalizer for the
+ * default analysis (G11, last 365 days = 2025). Public PSE prices (RCE/RCEm) are downloaded as in
+ * real use; one test switches the network off to check the app copes without them. Every test saves
+ * screenshots (see [screenshot]).
  */
 @RunWith(AndroidJUnit4::class)
-class OfflineAppTest {
+class LocalFilesAppTest {
     @get:Rule val compose = createEmptyComposeRule()
+    @get:Rule val testName = TestName()
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val app: Context = instrumentation.targetContext
+    private val polish = Locale.forLanguageTag("pl-PL")
+    /** Resources in the app's language (Polish), for expected texts. */
+    private val res: Context =
+        app.createConfigurationContext(
+            Configuration(app.resources.configuration).apply { setLocale(polish) }
+        )
     private val golden =
         JSONObject(
             instrumentation.context.assets.open("eanalizer-golden.json").use {
@@ -51,8 +66,9 @@ class OfflineAppTest {
         )
     private var scenario: ActivityScenario<MainActivity>? = null
     private var shots = 0
+    private var offline = false
 
-    private fun str(id: Int, vararg args: Any) = app.getString(id, *args)
+    private fun str(id: Int, vararg args: Any) = res.getString(id, *args)
 
     /** eanalizer total cost of [tariff] for 2025 (= the default "last 365 days"). */
     private fun cost2025(tariff: String) =
@@ -95,6 +111,18 @@ class OfflineAppTest {
         }
     }
 
+    private fun shell(command: String) {
+        instrumentation.uiAutomation.executeShellCommand(command).use { pfd ->
+            // Reading to the end waits for the command to finish.
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(pfd).use { it.readBytes() }
+        }
+    }
+
+    private fun setAirplaneMode(on: Boolean) {
+        shell("cmd connectivity airplane-mode ${if (on) "enable" else "disable"}")
+        offline = on
+    }
+
     private fun prepare(prefs: String? = null) {
         val data = File(app.filesDir, "enea").apply { deleteRecursively() }
         File(app.filesDir, "prices").deleteRecursively()
@@ -110,18 +138,25 @@ class OfflineAppTest {
             .putBoolean("local_only", true)
             .apply { if (prefs != null) putString("analysis_prefs", prefs) }
             .commit()
+        // Polish UI (the app's main language) whatever the emulator's language; amounts are
+        // formatted with the default locale.
+        Locale.setDefault(polish)
+        if (Build.VERSION.SDK_INT >= 33)
+            app.getSystemService(LocaleManager::class.java).applicationLocales = LocaleList(polish)
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
     @After
     fun tearDown() {
         scenario?.close()
+        if (offline) setAirplaneMode(false)
     }
 
     /**
-     * Saves a PNG of the screen as `<n>-<name>.png` into AGP's additional test output (pulled to
-     * `app/build/outputs/connected_android_test_additional_output/`, a CI artifact), so a run shows
-     * what the app displayed. Waits briefly for background work (progress indicators).
+     * Saves a PNG of the screen as `<test>-<n>-<name>.png` into AGP's additional test output
+     * (pulled to `app/build/outputs/connected_android_test_additional_output/`, CI artifact
+     * `ui-screenshots`), so a run shows what the app displayed. Waits briefly for background work
+     * (progress indicators) first.
      */
     private fun screenshot(name: String) {
         runCatching {
@@ -137,7 +172,7 @@ class OfflineAppTest {
             InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")?.let(::File)
                 ?: File(app.getExternalFilesDir(null), "screenshots")
         dir.mkdirs()
-        val file = File(dir, "%02d-%s.png".format(++shots, name))
+        val file = File(dir, "%s-%02d-%s.png".format(testName.methodName, ++shots, name))
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
@@ -179,11 +214,10 @@ class OfflineAppTest {
                 R.string.screen_power to "power",
                 R.string.screen_selfuse to "selfuse",
                 R.string.screen_data to "data",
-                R.string.screen_rce to "rce",
             )
         for ((title, name) in reports) {
             open(title)
-            screenshot("report-$name")
+            screenshot(name)
             pressBack()
             // Back on the main screen (its top bar has the settings button).
             compose.waitUntil(10_000) {
@@ -196,8 +230,29 @@ class OfflineAppTest {
     }
 
     @Test
-    fun netBillingWithoutPricesDoesNotCrash() {
-        // Net-billing needs PSE prices; offline the analysis still completes and says so.
+    fun rceReportDownloadsPsePrices() {
+        prepare()
+        waitFor(zl(cost2025("G11")))
+        open(R.string.screen_rce)
+        nodes(str(R.string.rce_load, "2025-01-01", "2025-12-31")).onFirst().performClick()
+        // A year of hourly prices: one PSE request per day.
+        waitFor(str(R.string.rce_balance), timeoutMs = 240_000)
+        nodes(str(R.string.rce_failed_days, 0).substringBefore("0")).assertCountEquals(0)
+        screenshot("rce")
+    }
+
+    @Test
+    fun netBillingValuesDepositWithRcem() {
+        prepare("""{"mode":"NET_BILLING"}""")
+        waitFor(str(R.string.nb_deposit_value))
+        nodes(str(R.string.nb_prices_unavailable)).assertCountEquals(0)
+        screenshot("netbilling")
+    }
+
+    @Test
+    fun netBillingWithoutNetworkDoesNotCrash() {
+        // Without PSE prices the analysis still completes and says so.
+        setAirplaneMode(true)
         prepare("""{"mode":"NET_BILLING"}""")
         waitFor(str(R.string.nb_prices_unavailable))
         screenshot("netbilling-offline")
