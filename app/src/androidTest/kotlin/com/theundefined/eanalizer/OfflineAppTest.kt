@@ -1,16 +1,22 @@
 package com.theundefined.eanalizer
 
 import android.content.Context
+import android.graphics.Bitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsNodeInteractionCollection
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ActivityScenario
@@ -44,6 +50,7 @@ class OfflineAppTest {
             }
         )
     private var scenario: ActivityScenario<MainActivity>? = null
+    private var shots = 0
 
     private fun str(id: Int, vararg args: Any) = app.getString(id, *args)
 
@@ -111,6 +118,30 @@ class OfflineAppTest {
         scenario?.close()
     }
 
+    /**
+     * Saves a PNG of the screen as `<n>-<name>.png` into AGP's additional test output (pulled to
+     * `app/build/outputs/connected_android_test_additional_output/`, a CI artifact), so a run shows
+     * what the app displayed. Waits briefly for background work (progress indicators).
+     */
+    private fun screenshot(name: String) {
+        runCatching {
+            compose.waitUntil(15_000) {
+                compose
+                    .onAllNodes(hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate))
+                    .fetchSemanticsNodes()
+                    .isEmpty()
+            }
+        }
+        compose.waitForIdle()
+        val dir =
+            InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")?.let(::File)
+                ?: File(app.getExternalFilesDir(null), "screenshots")
+        dir.mkdirs()
+        val file = File(dir, "%02d-%s.png".format(++shots, name))
+        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
     /** Scrolls the main list to the report [title] and opens it. */
     private fun open(title: Int) {
         list().performScrollToNode(hasText(str(title)))
@@ -124,10 +155,13 @@ class OfflineAppTest {
         nodes(str(R.string.local_only_card)).assertCountEquals(1)
         // Local-only mode offers no Enea login.
         compose.onAllNodesWithText(str(R.string.login)).assertCountEquals(0)
+        screenshot("main")
         waitFor(zl(cost2025("G11")))
+        screenshot("main-summary")
 
         open(R.string.screen_compare)
         for (tariff in listOf("G11", "G12", "G12w")) waitFor(zl(cost2025(tariff)))
+        screenshot("compare")
     }
 
     @Test
@@ -136,21 +170,20 @@ class OfflineAppTest {
         waitFor(zl(cost2025("G11")))
         val reports =
             listOf(
-                R.string.screen_compare,
-                R.string.screen_bills,
-                R.string.screen_storage,
-                R.string.screen_extraload,
-                R.string.screen_monthly,
-                R.string.screen_yoy,
-                R.string.screen_profile,
-                R.string.screen_power,
-                R.string.screen_selfuse,
-                R.string.screen_data,
-                R.string.screen_rce,
+                R.string.screen_bills to "bills",
+                R.string.screen_storage to "storage",
+                R.string.screen_extraload to "extraload",
+                R.string.screen_monthly to "monthly",
+                R.string.screen_yoy to "yoy",
+                R.string.screen_profile to "profile",
+                R.string.screen_power to "power",
+                R.string.screen_selfuse to "selfuse",
+                R.string.screen_data to "data",
+                R.string.screen_rce to "rce",
             )
-        for (title in reports) {
+        for ((title, name) in reports) {
             open(title)
-            compose.waitForIdle()
+            screenshot("report-$name")
             pressBack()
             // Back on the main screen (its top bar has the settings button).
             compose.waitUntil(10_000) {
@@ -167,6 +200,7 @@ class OfflineAppTest {
         // Net-billing needs PSE prices; offline the analysis still completes and says so.
         prepare("""{"mode":"NET_BILLING"}""")
         waitFor(str(R.string.nb_prices_unavailable))
+        screenshot("netbilling-offline")
         waitFor(str(R.string.data_range, "2024-10-01", "2025-12-31"))
     }
 }

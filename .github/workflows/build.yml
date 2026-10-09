@@ -183,6 +183,16 @@ jobs:
           adb shell svc data disable
           ./gradlew connectedDebugAndroidTest
 
+    # Screens captured by OfflineAppTest (also on failure - shows what was on screen).
+    - name: Upload screenshots
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ui-screenshots
+        path: app/build/outputs/connected_android_test_additional_output/
+        if-no-files-found: warn
+        retention-days: 14
+
     - name: Upload test reports
       if: failure()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
