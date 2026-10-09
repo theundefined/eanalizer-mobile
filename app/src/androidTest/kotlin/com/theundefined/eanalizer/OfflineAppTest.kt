@@ -1,6 +1,9 @@
 package com.theundefined.eanalizer
 
 import android.content.Context
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrElse
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsNodeInteractionCollection
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollAction
@@ -56,8 +59,35 @@ class OfflineAppTest {
     private fun nodes(text: String): SemanticsNodeInteractionCollection =
         compose.onAllNodesWithText(text, substring = true)
 
-    private fun waitFor(text: String, timeoutMs: Long = 60_000) =
-        compose.waitUntil(timeoutMs) { nodes(text).fetchSemanticsNodes().isNotEmpty() }
+    /** The screen's list (the outermost scrollable node). */
+    private fun list() = compose.onAllNodes(hasScrollAction()).onFirst()
+
+    private fun scrollTo(text: String): Boolean =
+        runCatching { list().performScrollToNode(hasText(text, substring = true)) }.isSuccess
+
+    /** Texts on screen, for failure messages. */
+    private fun screenTexts(): String =
+        runCatching {
+                compose
+                    .onAllNodes(hasText("", substring = true), useUnmergedTree = true)
+                    .fetchSemanticsNodes()
+                    .flatMap { it.config.getOrElse(SemanticsProperties.Text) { emptyList() } }
+                    .joinToString(" | ")
+            }
+            .getOrElse { "<$it>" }
+
+    /**
+     * Waits until [text] is shown, scrolling the list to it (lazy items off screen don't exist).
+     */
+    private fun waitFor(text: String, timeoutMs: Long = 60_000) {
+        try {
+            compose.waitUntil(timeoutMs) {
+                nodes(text).fetchSemanticsNodes().isNotEmpty() || scrollTo(text)
+            }
+        } catch (e: ComposeTimeoutException) {
+            throw AssertionError("'$text' not shown; screen: ${screenTexts()}", e)
+        }
+    }
 
     private fun prepare(prefs: String? = null) {
         val data = File(app.filesDir, "enea").apply { deleteRecursively() }
@@ -84,19 +114,18 @@ class OfflineAppTest {
 
     /** Scrolls the main list to the report [title] and opens it. */
     private fun open(title: Int) {
-        // The report list is the outermost scrollable node.
-        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText(str(title)))
+        list().performScrollToNode(hasText(str(title)))
         nodes(str(title)).onFirst().performClick()
     }
 
     @Test
     fun showsCostsFromLocalFilesWithoutEnea() {
         prepare()
-        waitFor(zl(cost2025("G11")))
-        nodes(str(R.string.data_range, "2024-10-01", "2025-12-31")).assertCountEquals(1)
+        waitFor(str(R.string.data_range, "2024-10-01", "2025-12-31"))
         nodes(str(R.string.local_only_card)).assertCountEquals(1)
         // Local-only mode offers no Enea login.
         compose.onAllNodesWithText(str(R.string.login)).assertCountEquals(0)
+        waitFor(zl(cost2025("G11")))
 
         open(R.string.screen_compare)
         for (tariff in listOf("G11", "G12", "G12w")) waitFor(zl(cost2025(tariff)))
