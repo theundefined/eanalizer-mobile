@@ -9,7 +9,6 @@ import android.os.LocaleList
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsNodeInteractionCollection
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.captureToImage
@@ -24,7 +23,6 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.theundefined.eanalizer.ui.zl
@@ -100,14 +98,16 @@ class LocalFilesAppTest {
 
     /**
      * Waits until [text] is shown, scrolling the list to it (lazy items off screen don't exist).
+     * Polls between idle states instead of acting inside `waitUntil`.
      */
     private fun waitFor(text: String, timeoutMs: Long = 60_000) {
-        try {
-            compose.waitUntil(timeoutMs) {
-                nodes(text).fetchSemanticsNodes().isNotEmpty() || scrollTo(text)
-            }
-        } catch (e: ComposeTimeoutException) {
-            throw AssertionError("'$text' not shown; screen: ${screenTexts()}", e)
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            compose.waitForIdle()
+            if (nodes(text).fetchSemanticsNodes().isNotEmpty() || scrollTo(text)) return
+            if (System.currentTimeMillis() > deadline)
+                throw AssertionError("'$text' not shown; screen: ${screenTexts()}")
+            Thread.sleep(500)
         }
     }
 
@@ -218,7 +218,9 @@ class LocalFilesAppTest {
         for ((title, name) in reports) {
             open(title)
             screenshot(name)
-            pressBack()
+            // The app's own back arrow: Espresso's pressBack needs window focus, which a system
+            // dialog (e.g. a launcher ANR on a slow CI emulator) can take away.
+            compose.onAllNodesWithContentDescription(str(R.string.back)).onFirst().performClick()
             // Back on the main screen (its top bar has the settings button).
             compose.waitUntil(10_000) {
                 compose
