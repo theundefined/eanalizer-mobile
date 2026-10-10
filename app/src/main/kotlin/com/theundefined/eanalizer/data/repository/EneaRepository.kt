@@ -20,6 +20,7 @@ import com.theundefined.eanalizer.domain.DemoData
 import io.sentry.Sentry
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -85,12 +86,14 @@ class EneaRepository(context: Context) {
     suspend fun importFiles(uris: List<Uri>): List<String> =
         withContext(Dispatchers.IO) {
             uris.mapNotNull { uri ->
-                val name = displayName(uri) ?: uri.lastPathSegment ?: "dane.csv"
+                val name =
+                    (displayName(uri) ?: uri.lastPathSegment ?: "dane.csv").let {
+                        if (it.contains('.')) it else "$it.csv"
+                    }
                 try {
                     val bytes =
-                        appContext.contentResolver.openInputStream(uri)?.use {
-                            it.readAtMost(MAX_IMPORT_BYTES + 1)
-                        } ?: throw IOException("cannot open $uri")
+                        openForImport(uri)?.use { it.readAtMost(MAX_IMPORT_BYTES + 1) }
+                            ?: throw IOException("cannot open $uri")
                     if (bytes.size > MAX_IMPORT_BYTES) throw IOException("too large")
                     files.import(name, bytes)
                     null
@@ -104,6 +107,26 @@ class EneaRepository(context: Context) {
                     "$name (${e.javaClass.simpleName}: ${e.message})"
                 }
             }
+        }
+
+    /**
+     * Opens a picked file. Virtual files (e.g. a Google Drive document converted to a sheet) have
+     * no bytes of their own - `openInputStream` throws "File is virtual" - and have to be opened as
+     * an explicit type, CSV when the provider offers it.
+     */
+    private fun openForImport(uri: Uri): InputStream? =
+        try {
+            appContext.contentResolver.openInputStream(uri)
+        } catch (e: FileNotFoundException) {
+            val types = appContext.contentResolver.getStreamTypes(uri, "*/*").orEmpty()
+            val type =
+                types.firstOrNull { it.equals("text/csv", ignoreCase = true) }
+                    ?: types.firstOrNull { it.contains("csv", ignoreCase = true) }
+                    ?: types.firstOrNull { it.startsWith("text/") }
+                    ?: throw e
+            appContext.contentResolver
+                .openTypedAssetFileDescriptor(uri, type, null)
+                ?.createInputStream()
         }
 
     private fun displayName(uri: Uri): String? =
