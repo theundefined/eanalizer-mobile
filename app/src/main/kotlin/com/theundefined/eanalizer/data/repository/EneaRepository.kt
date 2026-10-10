@@ -17,6 +17,7 @@ import com.theundefined.eanalizer.data.remote.RceClient
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
 import com.theundefined.eanalizer.domain.BackupZip
 import com.theundefined.eanalizer.domain.DemoData
+import io.sentry.Sentry
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -96,12 +97,22 @@ class EneaRepository(context: Context) {
                 } catch (e: InvalidCsvException) {
                     name
                 } catch (e: IOException) {
-                    name
+                    Sentry.captureException(e)
+                    "$name (${e.javaClass.simpleName}: ${e.message})"
                 } catch (e: SecurityException) {
-                    name
+                    Sentry.captureException(e)
+                    "$name (${e.javaClass.simpleName}: ${e.message})"
                 }
             }
         }
+
+    private fun displayName(uri: Uri): String? =
+        runCatching {
+                appContext.contentResolver
+                    .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            }
+            .getOrNull()
 
     /** Writes a ZIP with all data files and the report settings; returns the number of files. */
     suspend fun createBackup(target: Uri): Int =
@@ -132,14 +143,6 @@ class EneaRepository(context: Context) {
                 ?.let { settings.restoreBackup(String(it.bytes)) }
             files.restore(entries)
         }
-
-    private fun displayName(uri: Uri): String? =
-        runCatching {
-                appContext.contentResolver
-                    .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-            }
-            .getOrNull()
 
     /** The stored data file [name]; null when it is gone. */
     fun dataFile(name: String, imported: Boolean): File? = files.file(name, imported)
