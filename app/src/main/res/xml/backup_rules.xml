@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup (Android 11 and older): only the data files and the plain settings. The encrypted
+     credentials (their key never leaves the device), cookies and the price cache stay out. -->
+<full-backup-content>
+    <include domain="file" path="enea" />
+    <include domain="sharedpref" path="settings.xml" />
+</full-backup-content>

@@ -15,6 +15,7 @@ import com.theundefined.eanalizer.data.remote.EneaMeterInfo
 import com.theundefined.eanalizer.data.remote.EneaProtocolException
 import com.theundefined.eanalizer.data.remote.RceClient
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
+import com.theundefined.eanalizer.domain.BackupZip
 import com.theundefined.eanalizer.domain.DemoData
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -100,6 +101,36 @@ class EneaRepository(context: Context) {
                     name
                 }
             }
+        }
+
+    /** Writes a ZIP with all data files and the report settings; returns the number of files. */
+    suspend fun createBackup(target: Uri): Int =
+        withContext(Dispatchers.IO) {
+            val data = files.backupEntries()
+            val entries =
+                data + BackupZip.Entry(BackupZip.SETTINGS, settings.backupJson().toByteArray())
+            val out =
+                appContext.contentResolver.openOutputStream(target, "wt")
+                    ?: throw IOException("cannot open $target")
+            out.use { BackupZip.write(it, entries) }
+            data.size
+        }
+
+    /**
+     * Restores a backup ZIP: data files are only added or enlarged, never lost, and the report
+     * settings are applied. Returns the number of files written; throws [IOException] when the
+     * archive holds nothing recognisable.
+     */
+    suspend fun restoreBackup(source: Uri): Int =
+        withContext(Dispatchers.IO) {
+            val entries =
+                appContext.contentResolver.openInputStream(source)?.use { BackupZip.read(it) }
+                    ?: throw IOException("cannot open $source")
+            if (entries.isEmpty()) throw IOException("not a backup")
+            entries
+                .firstOrNull { it.name == BackupZip.SETTINGS }
+                ?.let { settings.restoreBackup(String(it.bytes)) }
+            files.restore(entries)
         }
 
     private fun displayName(uri: Uri): String? =

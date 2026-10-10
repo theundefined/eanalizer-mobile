@@ -236,6 +236,34 @@ fun SettingsScreen(
             }
         }
         item {
+            val createBackup =
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument("application/zip")
+                ) { uri ->
+                    if (uri != null) viewModel.createBackup(uri)
+                }
+            val restoreBackup =
+                rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                    if (uri != null) viewModel.restoreBackup(uri)
+                }
+            SectionCard(title = stringResource(R.string.backup)) {
+                MutedText(stringResource(R.string.backup_hint))
+                OutlinedButton(
+                    onClick = {
+                        createBackup.launch("eanalizer-backup-${java.time.LocalDate.now()}.zip")
+                    }
+                ) {
+                    Text(stringResource(R.string.backup_create))
+                }
+                OutlinedButton(
+                    onClick = { restoreBackup.launch(arrayOf("application/zip", "*/*")) },
+                    enabled = !state.importing,
+                ) {
+                    Text(stringResource(R.string.backup_restore))
+                }
+            }
+        }
+        item {
             val context = LocalContext.current
             TextButton(
                 onClick = {

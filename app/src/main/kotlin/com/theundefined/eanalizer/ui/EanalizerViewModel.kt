@@ -86,6 +86,12 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
 
         data object Saved : UiEvent
 
+        data class BackupSaved(val files: Int) : UiEvent
+
+        data class BackupRestored(val files: Int) : UiEvent
+
+        data object BackupFailed : UiEvent
+
         /** Files were imported; [rejected] are names that are not Enea hourly CSVs. */
         data class Imported(val count: Int, val rejected: List<String>) : UiEvent
     }
@@ -632,6 +638,45 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 throw e
             } catch (e: Exception) {
                 _events.emit(UiEvent.Error(ErrorKind.UNKNOWN, e.message))
+            } finally {
+                _uiState.update { it.copy(importing = false) }
+            }
+        }
+    }
+
+    /** Writes all data files and the settings (no credentials) to a ZIP at [target]. */
+    fun createBackup(target: Uri) {
+        viewModelScope.launch {
+            try {
+                _events.emit(UiEvent.BackupSaved(repo.createBackup(target)))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _events.emit(UiEvent.BackupFailed)
+            }
+        }
+    }
+
+    /** Merges a backup ZIP into the stored data (nothing is overwritten with less data). */
+    fun restoreBackup(source: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(importing = true) }
+            try {
+                val n = repo.restoreBackup(source)
+                _uiState.update {
+                    it.copy(
+                        prefs = settings.prefs,
+                        tariffs = settings.tariffs,
+                        reportPrefs = settings.reportPrefs,
+                        localOnly = settings.localOnly,
+                    )
+                }
+                reloadRecords()
+                _events.emit(UiEvent.BackupRestored(n))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _events.emit(UiEvent.BackupFailed)
             } finally {
                 _uiState.update { it.copy(importing = false) }
             }

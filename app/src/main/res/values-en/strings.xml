@@ -445,4 +445,11 @@
     <string name="demo_text">Showing generated sample data (a household with a PV installation), not your meter data. No login and no connection to Enea eBOK.</string>
     <string name="demo_exit">Exit demo mode</string>
     <string name="privacy_policy">Privacy policy</string>
+    <string name="backup">Backup</string>
+    <string name="backup_hint">A ZIP with the downloaded and imported data (Enea removes older data from the site) plus the report settings and the tariff table. No passwords or session. Restoring never replaces data with less data. Android may also keep this data in your Google account backup.</string>
+    <string name="backup_create">Create backup (ZIP)</string>
+    <string name="backup_restore">Restore from backup</string>
+    <string name="backup_saved">Backup saved (data files: %1$d)</string>
+    <string name="backup_restored">Data files restored: %1$d</string>
+    <string name="backup_failed">Backup or restore failed — this does not look like an eAnalizer backup.</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.theundefined.eanalizer.data.local
 
 import android.content.Context
+import com.theundefined.eanalizer.domain.BackupZip
 import com.theundefined.eanalizer.domain.EneaCsvParser
 import com.theundefined.eanalizer.domain.HourlyRecord
 import com.theundefined.eanalizer.domain.mergeRecords
@@ -132,6 +133,44 @@ class DataFiles(context: Context) {
             }
         val records = mergeRecords(parsed.sortedBy { it.first.lastModified() }.map { it.third })
         return LocalData(records, infos)
+    }
+
+    /** Every stored data file (downloads and imported) for a backup archive. */
+    fun backupEntries(): List<BackupZip.Entry> =
+        (list().map { it.file to "enea/" } + importedFiles().map { it to "enea/imported/" })
+            .mapNotNull { (f, prefix) ->
+                runCatching { BackupZip.Entry(prefix + f.name, f.readBytes(), f.lastModified()) }
+                    .getOrNull()
+            }
+
+    /**
+     * Restores data files from a backup. Nothing is ever lost: a stored file is replaced only by a
+     * backup file with more valid hours; files without valid Enea rows are skipped. Returns the
+     * number of files written.
+     */
+    fun restore(entries: List<BackupZip.Entry>): Int {
+        var written = 0
+        entries.forEach { e ->
+            val imported = e.name.startsWith("enea/imported/")
+            if (!e.name.startsWith("enea/")) return@forEach
+            val target = File(if (imported) importDir else dir, e.name.substringAfterLast('/'))
+            val hours = runCatching { EneaCsvParser.parse(EneaCsvParser.decode(e.bytes)).size }
+            if ((hours.getOrDefault(0)) == 0) return@forEach
+            if (target.isFile) {
+                val have =
+                    runCatching {
+                            EneaCsvParser.parse(EneaCsvParser.decode(target.readBytes())).size
+                        }
+                        .getOrDefault(0)
+                if (have >= hours.getOrDefault(0)) return@forEach
+            }
+            target.parentFile?.mkdirs()
+            val tmp = File(target.parentFile, "${target.name}.tmp")
+            tmp.writeBytes(e.bytes)
+            if (e.modified > 0) tmp.setLastModified(e.modified)
+            if (tmp.renameTo(target)) written++
+        }
+        return written
     }
 
     /** Removes the Enea downloads; imported files stay. */

@@ -17,9 +17,11 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 /** How exported energy is settled. */
 @Serializable
@@ -168,6 +170,34 @@ class SettingsStore(context: Context) {
                 runCatching { json.decodeFromString<ReportPrefs>(it) }.getOrNull()
             } ?: ReportPrefs()
         set(v) = plain.edit().putString(KEY_REPORT_PREFS, json.encodeToString(v)).apply()
+
+    /** Analysis/report settings and the tariff table as JSON for a backup (no account data). */
+    fun backupJson(): String =
+        buildJsonObject {
+                put(KEY_PREFS, json.encodeToString(prefs))
+                put(KEY_REPORT_PREFS, json.encodeToString(reportPrefs))
+                put(KEY_TARIFFS, tariffs.toCsv())
+                put(KEY_LOCAL_ONLY, localOnly)
+            }
+            .toString()
+
+    /** Applies [backupJson]; fields that are missing or invalid are left as they are. */
+    fun restoreBackup(text: String) {
+        val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
+        fun str(key: String) = runCatching { obj[key]?.jsonPrimitive?.content }.getOrNull()
+        str(KEY_PREFS)?.let { s ->
+            runCatching { json.decodeFromString<AnalysisPrefs>(s) }.getOrNull()?.let { prefs = it }
+        }
+        str(KEY_REPORT_PREFS)?.let { s ->
+            runCatching { json.decodeFromString<ReportPrefs>(s) }
+                .getOrNull()
+                ?.let { reportPrefs = it }
+        }
+        str(KEY_TARIFFS)?.let { s ->
+            TariffTable.parseCsv(s).takeIf { it.zones.isNotEmpty() }?.let { tariffs = it }
+        }
+        obj[KEY_LOCAL_ONLY]?.jsonPrimitive?.booleanOrNull?.let { localOnly = it }
+    }
 
     /** Daily background sync with notifications. */
     var backgroundSync: Boolean

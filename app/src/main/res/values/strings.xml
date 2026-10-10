@@ -448,4 +448,11 @@
     <string name="demo_exit">Wyjdź z trybu demo</string>
     <string name="privacy_policy">Polityka prywatności</string>
     <string name="privacy_policy_url" translatable="false">https://theundefined.github.io/eanalizer-mobile/privacy.html</string>
+    <string name="backup">Kopia zapasowa</string>
+    <string name="backup_hint">Plik ZIP z pobranymi i zaimportowanymi danymi (Enea usuwa starsze dane ze strony) oraz ustawieniami raportów i tabelą taryf. Bez haseł i sesji. Przywracanie niczego nie nadpisuje mniejszą ilością danych. Android może też sam zachować te dane w kopii na koncie Google.</string>
+    <string name="backup_create">Utwórz kopię (ZIP)</string>
+    <string name="backup_restore">Przywróć z kopii</string>
+    <string name="backup_saved">Kopia zapisana (pliki z danymi: %1$d)</string>
+    <string name="backup_restored">Przywrócono pliki z danymi: %1$d</string>
+    <string name="backup_failed">Nie udało się wykonać kopii lub przywrócić jej — to nie wygląda na kopię eAnalizera.</string>
 </resources>

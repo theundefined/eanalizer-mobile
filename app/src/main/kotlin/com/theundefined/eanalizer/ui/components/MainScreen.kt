@@ -120,6 +120,16 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                             )
                             .joinToString("\n")
                     )
+                is UiEvent.BackupSaved ->
+                    snackbarHostState.showSnackbar(
+                        resources.getString(R.string.backup_saved, event.files)
+                    )
+                is UiEvent.BackupRestored ->
+                    snackbarHostState.showSnackbar(
+                        resources.getString(R.string.backup_restored, event.files)
+                    )
+                is UiEvent.BackupFailed ->
+                    snackbarHostState.showSnackbar(resources.getString(R.string.backup_failed))
                 is UiEvent.LoginRequired -> currentScreen = "login"
                 is UiEvent.Error ->
                     snackbarHostState.showSnackbar(
