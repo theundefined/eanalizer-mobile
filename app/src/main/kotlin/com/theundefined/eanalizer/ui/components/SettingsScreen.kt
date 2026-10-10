@@ -1,6 +1,8 @@
 package com.theundefined.eanalizer.ui.components
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -231,6 +233,21 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+            }
+        }
+        item {
+            val context = LocalContext.current
+            TextButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(context.getString(R.string.privacy_policy_url))
+                        )
+                    )
+                }
+            ) {
+                Text(stringResource(R.string.privacy_policy))
             }
         }
         item { MutedText(stringResource(R.string.about, BuildConfig.VERSION_NAME)) }

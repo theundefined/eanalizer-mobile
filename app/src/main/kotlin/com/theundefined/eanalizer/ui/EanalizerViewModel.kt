@@ -96,6 +96,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 loggedIn = settings.loggedIn,
                 loginAt = settings.loginAt,
                 sessionCheckedAt = settings.sessionCheckedAt,
+                demo = settings.demoMode,
                 lastSync = settings.lastSync,
                 prefs = settings.prefs,
                 tariffs = settings.tariffs,
@@ -134,7 +135,12 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         // data was not downloaded today yet.
         viewModelScope.launch {
             reloadRecords()
-            if (!settings.localOnly && settings.loggedIn && !isToday(settings.lastSync))
+            if (
+                !settings.localOnly &&
+                    !settings.demoMode &&
+                    settings.loggedIn &&
+                    !isToday(settings.lastSync)
+            )
                 sync(quiet = true)
         }
         viewModelScope.launch {
@@ -693,6 +699,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             return
         }
+        if (syncJob?.isActive == true || settings.demoMode) return
         syncJob =
             viewModelScope.launch {
                 _uiState.update { it.copy(syncing = true) }
@@ -732,7 +739,23 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             }
     }
 
+    /** Switches to synthetic data (no login, no network sync). */
+    fun startDemo() {
+        settings.demoMode = true
+        _uiState.update { it.copy(demo = true) }
+        viewModelScope.launch { reloadRecords() }
+    }
+
+    /** Leaves the demo mode; real data (if any was downloaded earlier) is shown again. */
+    fun exitDemo() {
+        settings.demoMode = false
+        _uiState.update { it.copy(demo = false) }
+        viewModelScope.launch { reloadRecords() }
+    }
+
     fun onWebLoginFinished() {
+        val wasDemo = settings.demoMode
+        settings.demoMode = false
         repo.onWebLoginFinished()
         _uiState.update {
             it.copy(
@@ -742,6 +765,11 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
         sync()
+        _uiState.update { it.copy(loggedIn = true, demo = false) }
+        viewModelScope.launch {
+            if (wasDemo) reloadRecords()
+            sync()
+        }
     }
 
     fun chooseCustomer(number: String) {
@@ -797,6 +825,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 loggedIn = false,
                 loginAt = 0L,
                 sessionCheckedAt = 0L,
+                demo = false,
                 lastSync = 0L,
                 customers = emptyList(),
                 customerNumber = null,

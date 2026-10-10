@@ -215,6 +215,11 @@ class SettingsStore(context: Context) {
         get() = plain.getLong(KEY_LAST_SYNC, 0L)
         set(v) = plain.edit().putLong(KEY_LAST_SYNC, v).apply()
 
+    /** Demo mode: synthetic data instead of Enea eBOK downloads (nothing is stored or synced). */
+    var demoMode: Boolean
+        get() = plain.getBoolean(KEY_DEMO, false)
+        set(v) = plain.edit().putBoolean(KEY_DEMO, v).apply()
+
     var loggedIn: Boolean
         get() = plain.getBoolean(KEY_LOGGED_IN, false)
         set(v) = plain.edit().putBoolean(KEY_LOGGED_IN, v).apply()
@@ -265,6 +270,7 @@ class SettingsStore(context: Context) {
         const val KEY_CUSTOMER = "customer"
         const val KEY_LAST_SYNC = "last_sync"
         const val KEY_LOGGED_IN = "logged_in"
+        const val KEY_DEMO = "demo_mode"
         const val KEY_REPORT_PREFS = "report_prefs"
         const val KEY_BACKGROUND_SYNC = "background_sync"
         const val KEY_LOCAL_ONLY = "local_only"

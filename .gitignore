@@ -39,8 +39,9 @@ android-sdk/
 .env*
 tmp/
 
-# Local planning/notes docs — never committed to the repo
-docs/
+# Local planning/notes docs — never committed to the repo (docs/ itself is the public GitHub Pages site)
+docs/plans/
+internaldocs/
 
 # Python bytecode
 __pycache__/

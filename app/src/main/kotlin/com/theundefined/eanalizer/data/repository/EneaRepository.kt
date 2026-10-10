@@ -15,6 +15,7 @@ import com.theundefined.eanalizer.data.remote.EneaMeterInfo
 import com.theundefined.eanalizer.data.remote.EneaProtocolException
 import com.theundefined.eanalizer.data.remote.RceClient
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
+import com.theundefined.eanalizer.domain.DemoData
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -70,7 +71,10 @@ class EneaRepository(context: Context) {
     private val enea by lazy { EneaClient(cookieJar) { userAgent } }
     private val rce = RceClient(File(appContext.filesDir, "prices"))
 
-    suspend fun loadData(): LocalData = withContext(Dispatchers.IO) { files.load() }
+    suspend fun loadData(): LocalData =
+        withContext(Dispatchers.IO) {
+            if (settings.demoMode) LocalData(DemoData.records(), emptyList()) else files.load()
+        }
 
     /**
      * Imports CSV files picked by the user (e.g. downloaded from the eBOK page by hand). Returns
@@ -110,7 +114,6 @@ class EneaRepository(context: Context) {
     fun dataFile(name: String, imported: Boolean): File? = files.file(name, imported)
 
     fun deleteDataFile(name: String, imported: Boolean) = files.delete(name, imported)
-
     /**
      * Downloads missing/outdated years. With [force] every available year is downloaded again.
      * Throws [SessionExpiredException] when the user must log in in the WebView.
@@ -225,6 +228,7 @@ class EneaRepository(context: Context) {
         settings.lastSync = 0L
         settings.email = ""
         settings.password = ""
+        settings.demoMode = false
     }
 
     suspend fun rcePrices(

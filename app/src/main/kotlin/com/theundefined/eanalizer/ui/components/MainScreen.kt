@@ -295,6 +295,8 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                         state,
                         onLogin = { currentScreen = "login" },
                         onImport = importCsv,
+                        onDemo = { viewModel.startDemo() },
+                        onExitDemo = { viewModel.exitDemo() },
                         onSync = { viewModel.sync() },
                         onRefreshPrices = { viewModel.refreshPrices() },
                     )
@@ -326,6 +328,8 @@ private fun StatusCard(
     state: UiState,
     onLogin: () -> Unit,
     onImport: () -> Unit,
+    onDemo: () -> Unit,
+    onExitDemo: () -> Unit,
     onSync: () -> Unit,
     onRefreshPrices: () -> Unit,
 ) {
@@ -338,7 +342,10 @@ private fun StatusCard(
             if (state.localOnly) {
                 Text(stringResource(R.string.welcome_text_local))
                 if (state.importing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                else Button(onClick = onImport) { Text(stringResource(R.string.import_files)) }
+                else {
+                    Button(onClick = onImport) { Text(stringResource(R.string.import_files)) }
+                    OutlinedButton(onClick = onDemo) { Text(stringResource(R.string.demo_start)) }
+                }
                 return@SectionCard
             }
             Text(stringResource(R.string.welcome_text))
@@ -348,7 +355,35 @@ private fun StatusCard(
                 Button(onClick = onLogin) { Text(stringResource(R.string.login)) }
                 MutedText(stringResource(R.string.welcome_or_import))
                 OutlinedButton(onClick = onImport) { Text(stringResource(R.string.import_files)) }
+                OutlinedButton(onClick = onDemo) { Text(stringResource(R.string.demo_start)) }
             }
+        }
+        return
+    }
+    if (state.demo) {
+        SectionCard(title = stringResource(R.string.demo_title)) {
+            Text(stringResource(R.string.demo_text))
+            MutedText(
+                stringResource(
+                    R.string.data_range,
+                    state.dataStart.toString(),
+                    state.dataEnd.toString()
+                )
+            )
+            RefreshRow(
+                text =
+                    if (state.pricesRefreshing) stringResource(R.string.prices_refreshing)
+                    else
+                        stringResource(
+                            R.string.prices_fetched,
+                            if (state.pricesFetchedAt > 0) dateTime(state.pricesFetchedAt)
+                            else stringResource(R.string.never),
+                        ),
+                description = stringResource(R.string.refresh_prices),
+                enabled = !state.pricesRefreshing,
+                onClick = onRefreshPrices,
+            )
+            OutlinedButton(onClick = onExitDemo) { Text(stringResource(R.string.demo_exit)) }
         }
         return
     }

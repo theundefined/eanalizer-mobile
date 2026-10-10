@@ -442,4 +442,10 @@
     <string name="welcome_or_import">Masz już pliki CSV z eBOK? Dodaj je bez logowania.</string>
     <string name="local_only_card">Tryb plików z telefonu — dane nie są pobierane z Enea.</string>
     <string name="not_connected_card">Brak połączenia z Enea — pokazuję dodane pliki. Zaloguj się, aby pobierać dane automatycznie, albo włącz w ustawieniach tryb plików z telefonu.</string>
+    <string name="demo_start">Wypróbuj na danych przykładowych</string>
+    <string name="demo_title">Tryb demonstracyjny</string>
+    <string name="demo_text">Wyświetlane są wygenerowane dane przykładowe (gospodarstwo domowe z instalacją PV), a nie Twoje dane z licznika. Bez logowania i bez połączenia z Enea eBOK.</string>
+    <string name="demo_exit">Wyjdź z trybu demo</string>
+    <string name="privacy_policy">Polityka prywatności</string>
+    <string name="privacy_policy_url" translatable="false">https://theundefined.github.io/eanalizer-mobile/privacy.html</string>
 </resources>

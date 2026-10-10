@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eAnalizer — polityka prywatności</title>
+<meta name="description" content="Polityka prywatności aplikacji eAnalizer Mobile.">
+<link rel="icon" type="image/png" href="img/icon-64.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<style>
+  :root { --bg: #f5f9fc; --surface: #ffffff; --text: #14212b; --muted: #55646f; --accent: #0b5f94; --accent-soft: #dcecf7; --border: #d5e2ec; color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0e1a23; --surface: #162531; --text: #e8f0f6; --muted: #9fb2c0; --accent: #6cc4f5; --accent-soft: #1b3447; --border: #2a3f4f; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main, header, footer { max-width: 800px; margin: 0 auto; padding: 0 16px; }
+  a { color: var(--accent); }
+  h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.2; }
+  h2 { font-size: 1.35rem; margin-top: 40px; }
+  .muted { color: var(--muted); }
+  li { margin: 6px 0; }
+  .button { display: inline-block; padding: 12px 20px; border-radius: 999px; text-decoration: none; font-weight: 600; border: 2px solid var(--accent); margin: 0 8px 8px 0; }
+  .button.primary { background: var(--accent); color: var(--bg); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 4px 20px 16px; margin: 16px 0; }
+  footer { padding: 40px 16px; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="./">← eAnalizer</a></p>
+  <h1>Polityka prywatności aplikacji eAnalizer</h1>
+  <p class="muted">Obowiązuje od 10 października 2026 r.</p>
+
+  <p>eAnalizer to nieoficjalna, bezpłatna aplikacja na Androida do analizy godzinowych danych z licznika
+    energii pobranych z Twojego konta Enea eBOK. Autor aplikacji
+    (<a href="https://github.com/theundefined">TheUndefined</a>) <strong>nie prowadzi żadnego serwera</strong>,
+    przez który przechodziłyby Twoje dane — aplikacja łączy się bezpośrednio z serwisami opisanymi niżej.
+    Kod źródłowy jest <a href="https://github.com/theundefined/eanalizer-mobile">publicznie dostępny</a>,
+    więc każdy może sprawdzić opisane zachowanie.</p>
+
+  <h2>Dane przechowywane na telefonie</h2>
+  <ul>
+    <li><strong>Dane logowania do Enea eBOK</strong> (adres e-mail i opcjonalnie hasło) — tylko jeśli je zapiszesz;
+      przechowywane zaszyfrowane (AES-256, klucz w systemowym magazynie Android Keystore). Służą wyłącznie do
+      wstępnego wypełnienia formularza logowania na stronie Enei; wysłanie formularza i kod z SMS/e-maila
+      zatwierdzasz sam.</li>
+    <li><strong>Sesja Enea eBOK</strong> (pliki cookie po zalogowaniu), numer klienta wybrany na koncie
+      i identyfikatory konta techniczne.</li>
+    <li><strong>Godzinowe dane z licznika</strong> (pobór i oddanie energii) pobrane z eBOK, zapisane jako
+      pliki CSV w prywatnej pamięci aplikacji (dostępnej tylko dla niej), bez dodatkowego szyfrowania —
+      żeby aplikacja pokazywała wyniki od razu, także bez internetu.</li>
+    <li><strong>Ustawienia</strong>: wybrana taryfa, tabela cen i opłat, parametry magazynu i produkcji PV,
+      wybrany okres analizy, ustawienie synchronizacji w tle.</li>
+    <li><strong>Pobrane ceny rynkowe PSE</strong> (publiczne dane, niezwiązane z Tobą).</li>
+  </ul>
+  <p>Aplikacja ma wyłączoną kopię zapasową Androida (<code>allowBackup=false</code>), więc te dane nie trafiają
+    do kopii na Twoim koncie Google.</p>
+
+  <h2>Komu i co aplikacja wysyła</h2>
+  <ul>
+    <li><strong>Enea (ebok.enea.pl)</strong> — logowanie odbywa się w oknie przeglądarki wbudowanym w aplikację,
+      na prawdziwej stronie Enei. Aplikacja nie wysyła Twoich danych logowania sama. Strona Enei jest
+      zabezpieczona usługą reCAPTCHA Enterprise firmy Google, która działa na zasadach Google. Po zalogowaniu
+      aplikacja pobiera z eBOK pliki CSV z Twoimi danymi licznikowymi. Dane przetwarza Enea na własnych
+      zasadach.</li>
+    <li><strong>PSE (api.raporty.pse.pl, www.pse.pl)</strong> — pobieranie publicznych cen energii (RCE, RCEm).
+      Zapytania zawierają tylko zakres dat; serwer widzi adres IP urządzenia, nie widzi Twoich danych.</li>
+    <li><strong>Raporty błędów (Sentry)</strong> — po awarii lub błędzie aplikacja wysyła do usługi Sentry
+      (serwery w UE, <code>de.sentry.io</code>) raport techniczny: model telefonu, wersję Androida i aplikacji,
+      przebieg błędu (stos wywołań). Aplikacja nie włącza opcji wysyłania danych osobowych (<code>send-default-pii</code>
+      wyłączone) i nie wysyła zawartości plików z licznika ani haseł.</li>
+    <li><strong>Eksport</strong> — pliki CSV/XLSX z wynikami powstają, dopiero gdy sam o to poprosisz;
+      udostępniasz je wybranej przez siebie aplikacji albo zapisujesz w wybranym miejscu.</li>
+  </ul>
+
+  <h2>Uprawnienia</h2>
+  <ul>
+    <li><strong>Internet</strong> — połączenia opisane wyżej.</li>
+    <li><strong>Powiadomienia</strong> — opcjonalne; informacja o nowych danych lub wygasłej sesji przy włączonej
+      synchronizacji w tle.</li>
+    <li><strong>Uruchamianie po starcie systemu</strong> — wyłącznie do ponownego zaplanowania opcjonalnej synchronizacji
+      w tle.</li>
+  </ul>
+
+  <h2>Tryb demonstracyjny</h2>
+  <p>W trybie demo aplikacja wyświetla wygenerowane dane przykładowe — bez logowania i bez połączenia z Enea.</p>
+
+  <h2>Czego aplikacja nie robi</h2>
+  <ul>
+    <li>Nie wyświetla reklam i nie używa narzędzi analitycznych ani śledzących (poza raportami błędów wyżej).</li>
+    <li>Nie sprzedaje ani nie udostępnia danych nikomu poza wymienionymi usługami.</li>
+    <li>Nie pobiera Twojej lokalizacji, kontaktów, zdjęć ani plików.</li>
+  </ul>
+
+  <h2>Usuwanie danych</h2>
+  <p>W Ustawieniach, przycisk „Usuń wszystkie dane”, kasuje z telefonu pobrane dane licznikowe, sesję, wybór klienta
+    i zapisane dane logowania. „Wyloguj” usuwa samą sesję. Odinstalowanie aplikacji usuwa wszystkie jej dane z telefonu.
+    Raporty błędów są przechowywane w Sentry przez ograniczony czas i usuwane automatycznie; o wcześniejsze usunięcie
+    możesz poprosić autora. Danych na koncie Enea eBOK aplikacja nie zmienia ani nie usuwa.</p>
+
+  <h2>Dzieci</h2>
+  <p>Aplikacja jest przeznaczona dla osób pełnoletnich (wymaga konta Enea eBOK) i nie jest kierowana do dzieci.</p>
+
+  <h2>Kontakt i zmiany</h2>
+  <p>Pytania i prośby dotyczące prywatności:
+    <a href="https://github.com/theundefined/eanalizer-mobile/issues">zgłoszenie na GitHubie</a>.
+    Zmiany tej polityki będą publikowane na tej stronie, a ich historia jest widoczna w repozytorium.</p>
+</main>
+</body>
+</html>

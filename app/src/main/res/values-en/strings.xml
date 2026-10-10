@@ -440,4 +440,9 @@
     <string name="welcome_or_import">Already have CSV files from eBOK? Add them without logging in.</string>
     <string name="local_only_card">Device files mode — data is not downloaded from Enea.</string>
     <string name="not_connected_card">Not connected to Enea — showing the added files. Log in to download data automatically, or turn on the device files mode in Settings.</string>
+    <string name="demo_start">Try with sample data</string>
+    <string name="demo_title">Demo mode</string>
+    <string name="demo_text">Showing generated sample data (a household with a PV installation), not your meter data. No login and no connection to Enea eBOK.</string>
+    <string name="demo_exit">Exit demo mode</string>
+    <string name="privacy_policy">Privacy policy</string>
 </resources>
