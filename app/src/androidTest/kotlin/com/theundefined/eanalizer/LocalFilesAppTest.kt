@@ -173,7 +173,16 @@ class LocalFilesAppTest {
                 ?: File(app.getExternalFilesDir(null), "screenshots")
         dir.mkdirs()
         val file = File(dir, "%s-%02d-%s.png".format(testName.methodName, ++shots, name))
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        // captureToImage waits only 2 s for a frame; after heavy work (a year of PSE prices) the
+        // window can be late. The screenshot is diagnostics only - retry, never fail the test.
+        val bitmap =
+            (1..3).firstNotNullOfOrNull {
+                runCatching {
+                        compose.waitForIdle()
+                        compose.onRoot().captureToImage().asAndroidBitmap()
+                    }
+                    .getOrNull()
+            } ?: return
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
