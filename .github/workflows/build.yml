@@ -221,7 +221,9 @@ jobs:
       group: play-publish
       cancel-in-progress: false
     env:
-      PLAY_TRACK: internal
+      # Space-separated, published in this order: internal testing, then closed testing
+      # ("alpha" is the first closed track; a custom-named closed track has its own id).
+      PLAY_TRACKS: internal alpha
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.check-and-build.outputs.release_version }}
       # Commit the bundle was built from (scripts are always taken from the checked-out HEAD).
       RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.sha }}
@@ -276,10 +278,13 @@ jobs:
       run: pip install --require-hashes -r .github/scripts/requirements.txt
 
     - name: Publish to Google Play
+      # The script is idempotent, so a failed later track can be fixed and the job re-run.
       run: |
-        python .github/scripts/publish_to_play.py \
-          --aab "${{ steps.meta.outputs.aab }}" \
-          --version-code "${{ steps.meta.outputs.version_code }}" \
-          --package com.theundefined.eanalizer \
-          --track "$PLAY_TRACK" \
-          --release-notes-file release-notes.txt
+        for track in $PLAY_TRACKS; do
+          python .github/scripts/publish_to_play.py \
+            --aab "${{ steps.meta.outputs.aab }}" \
+            --version-code "${{ steps.meta.outputs.version_code }}" \
+            --package com.theundefined.eanalizer \
+            --track "$track" \
+            --release-notes-file release-notes.txt
+        done
