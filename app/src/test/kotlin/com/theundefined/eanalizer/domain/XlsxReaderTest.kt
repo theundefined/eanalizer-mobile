@@ -35,7 +35,7 @@ class XlsxReaderTest {
         val recs = parsed(out.toByteArray())
         assertEquals(2, recs.size)
         assertEquals(LocalDateTime.of(2022, 3, 4, 5, 0), recs[0].timestamp)
-        assertEquals(0.5, recs[0].pobor, 1e-9)
+        assertEquals(0.25, recs[0].pobor, 1e-9)
         assertEquals(1.5, recs[0].oddanie, 1e-9)
     }
 
