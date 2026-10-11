@@ -25,8 +25,8 @@ android {
         applicationId = "com.theundefined.eanalizer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 27
-        versionName = "0.1.25"
+        versionCode = 28
+        versionName = "0.1.26"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
