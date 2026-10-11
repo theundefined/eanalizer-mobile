@@ -423,7 +423,7 @@
     <string name="files_title">Data files</string>
     <string name="local_only_switch">Only files on this device</string>
     <string name="local_only_info">No connection to Enea — only the stored and added CSV files are analysed. Login and sync are off.</string>
-    <string name="files_info">Hourly CSV files from Enea. You can add files downloaded by hand from eBOK — then logging in in the app is not needed. Where files cover the same hours, the newer one counts.</string>
+    <string name="files_info">Hourly CSV files from Enea. You can add files downloaded by hand from eBOK — then logging in in the app is not needed. Where files cover the same hours, the newer one counts. Files may also be XLSX or CSV saved from a spreadsheet. For a file that opens in Google Sheets, send it to the app: in Sheets choose Share &amp; export → Send a copy → CSV or XLSX → eAnalizer.</string>
     <string name="files_empty">No stored files.</string>
     <string name="file_downloaded">Downloaded from Enea %1$s</string>
     <string name="file_imported">Added %1$s</string>

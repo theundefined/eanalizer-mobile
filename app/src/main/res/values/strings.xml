@@ -425,7 +425,7 @@
     <string name="files_title">Pliki z danymi</string>
     <string name="local_only_switch">Tylko pliki z telefonu</string>
     <string name="local_only_info">Bez łączenia z Enea — analiza samych zapisanych i dodanych plików CSV. Logowanie i synchronizacja są wyłączone.</string>
-    <string name="files_info">Godzinowe pliki CSV z Enea. Możesz dodać pliki pobrane ręcznie z eBOK — logowanie w aplikacji nie jest wtedy potrzebne. Gdy pliki obejmują te same godziny, liczy się nowszy.</string>
+    <string name="files_info">Godzinowe pliki CSV z Enea. Możesz dodać pliki pobrane ręcznie z eBOK — logowanie w aplikacji nie jest wtedy potrzebne. Gdy pliki obejmują te same godziny, liczy się nowszy. Pliki mogą być też w formacie XLSX lub CSV z arkusza. Plik otwierany w Arkuszach Google wyślij do aplikacji: w Arkuszach Udostępnij i eksportuj → Wyślij kopię → CSV lub XLSX → eAnalizer.</string>
     <string name="files_empty">Brak zapisanych plików.</string>
     <string name="file_downloaded">Pobrany z Enea %1$s</string>
     <string name="file_imported">Dodany %1$s</string>

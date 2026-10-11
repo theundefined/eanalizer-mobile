@@ -71,11 +71,21 @@ object XlsxReader {
             else for (i in 0 until n.childNodes.length) walk(n.childNodes.item(i))
         }
         walk(this)
-        return sb.toString()
+        return unescape(sb.toString())
     }
 
     private fun sharedStrings(data: ByteArray): List<String> =
         runCatching { parse(data).children("si").map { it.text() } }.getOrDefault(emptyList())
+
+    private val ESCAPE = Regex("_x([0-9A-Fa-f]{4})_")
+
+    /**
+     * Decodes OOXML `_xHHHH_` escapes of characters XML cannot hold - Google Sheets writes the NUL
+     * bytes of old eBOK exports (2022) as `_x0000_`.
+     */
+    internal fun unescape(s: String): String =
+        if (!s.contains("_x")) s
+        else ESCAPE.replace(s) { it.groupValues[1].toInt(16).toChar().toString() }
 
     private fun sheetRows(data: ByteArray, shared: List<String>): List<List<String>> {
         val sheetData = parse(data).children("sheetData").firstOrNull() ?: return emptyList()
@@ -95,7 +105,7 @@ object XlsxReader {
         return when (c.getAttribute("t")) {
             "s" -> shared.getOrNull(v.toIntOrNull() ?: -1).orEmpty()
             "inlineStr" -> c.children("is").firstOrNull()?.text().orEmpty()
-            "str",
+            "str" -> unescape(v)
             "b",
             "e" -> v
             else -> number(v, first)

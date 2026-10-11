@@ -9,7 +9,11 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-/** Parser of the hourly CSV exported by Enea eBOK (`;`-separated, quoted, comma decimals). */
+/**
+ * Parser of the hourly CSV exported by Enea eBOK (`;`-separated, quoted, comma decimals). Also
+ * accepts the same table re-exported from a spreadsheet (Google Sheets, Excel, LibreOffice):
+ * `,`- or tab-separated, dot or comma decimals.
+ */
 object EneaCsvParser {
     private const val COL_DATE = "Data"
     private const val COL_POBOR_PRZED =
@@ -20,6 +24,10 @@ object EneaCsvParser {
         "Wolumen energii elektrycznej pobranej z sieci po bilansowaniu godzinowym"
     private const val COL_ODDANIE =
         "Wolumen energii elektrycznej oddanej do sieci po bilansowaniu godzinowym"
+
+    private val COLUMNS =
+        listOf(COL_DATE, COL_POBOR_PRZED, COL_ODDANIE_PRZED, COL_POBOR, COL_ODDANIE)
+    private val SEPARATORS = listOf(';', ',', '\t')
 
     private val formats =
         listOf("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm").map { DateTimeFormatter.ofPattern(it) }
@@ -35,16 +43,13 @@ object EneaCsvParser {
             }
         val iter = lines.iterator()
         if (!iter.hasNext()) return emptyList()
-        val header = splitLine(iter.next()).map { it.trim().removePrefix("\uFEFF") }
-        val idx =
-            listOf(COL_DATE, COL_POBOR_PRZED, COL_ODDANIE_PRZED, COL_POBOR, COL_ODDANIE).map { name
-                ->
-                header.indexOfFirst { it.equals(name, ignoreCase = true) }
-            }
-        if (idx.any { it < 0 }) return emptyList()
+        val first = iter.next()
+        // eBOK uses `;`; re-exports from Google Sheets/Excel/LibreOffice use `,` or a tab.
+        val sep = SEPARATORS.firstOrNull { columns(first, it) != null } ?: return emptyList()
+        val idx = columns(first, sep)!!
         val out = ArrayList<HourlyRecord>()
         for (line in iter) {
-            val f = splitLine(line)
+            val f = splitLine(line, sep)
             if (f.size <= idx.max()) continue
             val ts = parseTimestamp(f[idx[0]]) ?: continue
             val nums = idx.drop(1).map { parseNumber(f[it]) }
@@ -52,6 +57,13 @@ object EneaCsvParser {
             out += HourlyRecord(ts, nums[0]!!, nums[1]!!, nums[2]!!, nums[3]!!)
         }
         return out
+    }
+
+    /** Indices of the required columns in [header] split by [sep]; null when any is missing. */
+    private fun columns(header: String, sep: Char): List<Int>? {
+        val names = splitLine(header, sep).map { it.trim().removePrefix("\uFEFF") }
+        val idx = COLUMNS.map { c -> names.indexOfFirst { it.equals(c, ignoreCase = true) } }
+        return idx.takeIf { i -> i.none { it < 0 } }
     }
 
     /**
@@ -104,7 +116,7 @@ object EneaCsvParser {
     internal fun parseNumber(raw: String): Double? =
         raw.replace("\"", "").trim().replace(',', '.').toDoubleOrNull()?.takeIf { !it.isNaN() }
 
-    /** Splits a `;`-separated line honouring `"` quoting with `""` escapes. */
+    /** Splits a [sep]-separated line honouring `"` quoting with `""` escapes. */
     internal fun splitLine(line: String, sep: Char = ';'): List<String> {
         val out = ArrayList<String>()
         val sb = StringBuilder()
