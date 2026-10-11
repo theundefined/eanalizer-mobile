@@ -11,8 +11,8 @@ import java.time.temporal.ChronoUnit
 
 /**
  * Parser of the hourly CSV exported by Enea eBOK (`;`-separated, quoted, comma decimals). Also
- * accepts the same table re-exported from a spreadsheet (Google Sheets, Excel, LibreOffice):
- * `,`- or tab-separated, dot or comma decimals.
+ * accepts the same table re-exported from a spreadsheet (Google Sheets, Excel, LibreOffice): `,`-
+ * or tab-separated, dot or comma decimals.
  */
 object EneaCsvParser {
     private const val COL_DATE = "Data"
