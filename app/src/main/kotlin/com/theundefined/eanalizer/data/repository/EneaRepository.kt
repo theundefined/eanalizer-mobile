@@ -17,6 +17,7 @@ import com.theundefined.eanalizer.data.remote.RceClient
 import com.theundefined.eanalizer.data.remote.SessionExpiredException
 import com.theundefined.eanalizer.domain.BackupZip
 import com.theundefined.eanalizer.domain.DemoData
+import com.theundefined.eanalizer.domain.XlsxReader
 import io.sentry.Sentry
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -42,6 +43,7 @@ class NoMeterDataException : Exception("no customer with hourly data")
 private val syncLock = Mutex()
 
 /** Imported files are a year of hourly rows (~1 MB); anything far larger is not an Enea CSV. */
+private const val XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 private const val MAX_IMPORT_BYTES = 20 * 1024 * 1024
 
 /** `readNBytes` needs API 33. */
@@ -91,11 +93,17 @@ class EneaRepository(context: Context) {
                         if (it.contains('.')) it else "$it.csv"
                     }
                 try {
-                    val bytes =
+                    var bytes =
                         openForImport(uri)?.use { it.readAtMost(MAX_IMPORT_BYTES + 1) }
                             ?: throw IOException("cannot open $uri")
                     if (bytes.size > MAX_IMPORT_BYTES) throw IOException("too large")
-                    files.import(name, bytes)
+                    var stored = name
+                    // A sheet (Drive converts uploaded CSVs) or an .xlsx file: store it as CSV.
+                    if (XlsxReader.looksLikeXlsx(bytes)) {
+                        bytes = XlsxReader.toCsv(bytes) ?: throw InvalidCsvException(name)
+                        stored = name.substringBeforeLast('.') + ".csv"
+                    }
+                    files.import(stored, bytes)
                     null
                 } catch (e: InvalidCsvException) {
                     name
@@ -123,7 +131,8 @@ class EneaRepository(context: Context) {
                 types.firstOrNull { it.equals("text/csv", ignoreCase = true) }
                     ?: types.firstOrNull { it.contains("csv", ignoreCase = true) }
                     ?: types.firstOrNull { it.startsWith("text/") }
-                    ?: throw e
+                    ?: types.firstOrNull { it == XLSX_MIME }
+                    ?: throw IOException("File is virtual, offered types: ${types.toList()}", e)
             appContext.contentResolver
                 .openTypedAssetFileDescriptor(uri, type, null)
                 ?.createInputStream()
