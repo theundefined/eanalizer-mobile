@@ -269,6 +269,10 @@ fun MainScreen(viewModel: EanalizerViewModel) {
             DepositScreen(state = state, onBack = back)
             return
         }
+        "billingchart" -> {
+            BillingTimelineScreen(state = state, viewModel = viewModel, onBack = back)
+            return
+        }
     }
 
     val importCsv = rememberCsvImport(viewModel)
@@ -312,7 +316,13 @@ fun MainScreen(viewModel: EanalizerViewModel) {
                     )
                 }
                 if (state.hasData) {
-                    item { BillingCard(state, onSetDate = { currentScreen = "settings" }) }
+                    item {
+                        BillingCard(
+                            state,
+                            onSetDate = { currentScreen = "settings" },
+                            onOpenChart = { currentScreen = "billingchart" },
+                        )
+                    }
                     item { ParamsCard(state = state, onChange = { viewModel.updatePrefs(it) }) }
                     item {
                         SummaryCard(

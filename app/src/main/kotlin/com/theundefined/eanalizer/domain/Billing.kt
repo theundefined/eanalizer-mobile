@@ -24,6 +24,20 @@ data class BillingToDate(
         get() = netBilling?.calkowityKoszt ?: (result.energyCost + fixedFees)
 }
 
+/**
+ * State of a settlement period as if it were settled at the end of [date]: total cost (with fixed
+ * fees prorated to that day) and the credit left - unused net-metering credit in kWh, or the
+ * net-billing deposit left in zł; null without a settlement of exported energy.
+ */
+data class BillingPoint(val date: LocalDate, val cost: Double, val credit: Double?)
+
+/** Cost since the settlement date day by day, and the same days of the year before. */
+data class BillingTimeline(
+    val current: List<BillingPoint>,
+    /** The whole previous cycle (a year before the settlement date up to the day before it). */
+    val previous: List<BillingPoint>,
+)
+
 object Billing {
     /**
      * Monthly [fee] for the days `[from, to]`: each month counts with the share of its days in the
@@ -63,5 +77,56 @@ object Billing {
         val result = Analyzer.runFullAnalysis(recs, 0.0, table, tariff, netMeteringRatio)
         val fees = fixedFees(table.fixedFee(tariff), from, to)
         return BillingToDate(from, to, result, fees, settle(result.simulation, fees))
+    }
+
+    /**
+     * [BillingPoint]s of [simulation] (rows from [from] on, no storage) for every day in `[from,
+     * to]` - the last one equals [toDate]'s total and unused credit. Days without data carry the
+     * previous values. With [settle] (net-billing) the cost and deposit come from settling the rows
+     * up to the day, only every [settleStep] days and on the last day (it is much slower).
+     */
+    fun timeline(
+        simulation: List<SimulationRow>,
+        from: LocalDate,
+        to: LocalDate,
+        table: TariffTable,
+        tariff: String,
+        netMeteringRatio: Double? = null,
+        settle: ((List<SimulationRow>, Double) -> NetBillingResult?)? = null,
+        settleStep: Int = 7,
+    ): List<BillingPoint> {
+        if (to < from) return emptyList()
+        val fee = table.fixedFee(tariff)
+        val acc = LinkedHashMap<String, Analyzer.ZoneAcc>()
+        val points = ArrayList<BillingPoint>()
+        var i = 0
+        var day = from
+        while (day <= to) {
+            val end = day.plusDays(1).atStartOfDay()
+            while (i < simulation.size && simulation[i].timestamp < end) {
+                val row = simulation[i++]
+                table.resolve(row.timestamp, tariff)?.let {
+                    val z = acc.getOrPut(it.zone) { Analyzer.ZoneAcc(it.price) }
+                    z.pobor += row.poborZSieci
+                    z.oddanie += row.oddanieDoSieci
+                    z.koszt += row.poborZSieci * z.price
+                }
+            }
+            val fees = fixedFees(fee, from, day)
+            if (settle != null) {
+                val offset = day.toEpochDay() - from.toEpochDay()
+                if (offset % settleStep == 0L || day == to)
+                    settle(simulation.subList(0, i), fees)?.let {
+                        points += BillingPoint(day, it.calkowityKoszt, it.depozytPozostaly)
+                    }
+            } else if (netMeteringRatio != null) {
+                val (_, cost, unused) = Analyzer.netMetering(acc, netMeteringRatio)
+                points += BillingPoint(day, cost + fees, unused)
+            } else {
+                points += BillingPoint(day, acc.values.sumOf { it.koszt } + fees, null)
+            }
+            day = day.plusDays(1)
+        }
+        return points
     }
 }

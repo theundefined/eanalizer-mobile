@@ -19,6 +19,7 @@ import com.theundefined.eanalizer.domain.Aggregation
 import com.theundefined.eanalizer.domain.AnalysisResult
 import com.theundefined.eanalizer.domain.Analyzer
 import com.theundefined.eanalizer.domain.Billing
+import com.theundefined.eanalizer.domain.BillingTimeline
 import com.theundefined.eanalizer.domain.Bills
 import com.theundefined.eanalizer.domain.CsvExport
 import com.theundefined.eanalizer.domain.DepositForecast
@@ -28,6 +29,7 @@ import com.theundefined.eanalizer.domain.HourlyRecord
 import com.theundefined.eanalizer.domain.Insights
 import com.theundefined.eanalizer.domain.LoadAnalysis
 import com.theundefined.eanalizer.domain.NetBilling
+import com.theundefined.eanalizer.domain.NetBillingResult
 import com.theundefined.eanalizer.domain.NetBillingValuation
 import com.theundefined.eanalizer.domain.Periods
 import com.theundefined.eanalizer.domain.RceAnalysis
@@ -125,6 +127,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
     private var storageJob: Job? = null
     private var storageDetailJob: Job? = null
     private var dynamicJob: Job? = null
+    private var billingTimelineJob: Job? = null
     private var extraLoadJob: Job? = null
 
     /** Bumped by [refreshPrices] to recompute the analysis with freshly downloaded PSE prices. */
@@ -188,6 +191,41 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         records.value = recs
     }
 
+    /**
+     * Net-billing: up to 12 whole months of [all] before a range starting at [start], so deposits
+     * created then (still valid in the range) are carried over.
+     */
+    private fun historyOf(all: List<HourlyRecord>, start: LocalDate): List<HourlyRecord> {
+        val month = start.withDayOfMonth(1)
+        return Periods.filter(
+            all,
+            month.minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS),
+            month.minusDays(1)
+        )
+    }
+
+    /**
+     * Net-billing settlement of simulation rows of [tariff] starting at [start], with its history
+     * from [all] (simulated once, so the settlement can run repeatedly).
+     */
+    private fun netBillingSettler(
+        all: List<HourlyRecord>,
+        tariffs: TariffTable,
+        tariff: String,
+        rce: Map<LocalDateTime, Double>,
+        rcem: Map<YearMonth, Double>,
+        valuation: NetBillingValuation,
+        start: LocalDate,
+    ): (List<SimulationRow>, Double) -> NetBillingResult? {
+        val h = historyOf(all, start)
+        val hSim =
+            if (h.isEmpty()) emptyList()
+            else Analyzer.runFullAnalysis(h, 0.0, tariffs, tariff).simulation
+        return { sim, fee ->
+            NetBilling.settle(sim, tariffs, tariff, rce, rcem, valuation, fee, hSim)
+        }
+    }
+
     private suspend fun analyze(
         all: List<HourlyRecord>,
         prefs: AnalysisPrefs,
@@ -217,17 +255,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 ?.takeIf { it <= dataEnd }
 
         val netBilling = prefs.mode == SettlementMode.NET_BILLING
-        // Net-billing: up to 12 whole months before a range, so deposits created then (still
-        // valid in the range) are carried over.
-        fun historyOf(start: LocalDate): List<HourlyRecord> {
-            val month = start.withDayOfMonth(1)
-            return Periods.filter(
-                all,
-                month.minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS),
-                month.minusDays(1)
-            )
-        }
-        val history = if (netBilling) historyOf(from) else emptyList()
+        val history = if (netBilling) historyOf(all, from) else emptyList()
         // Net-billing: the last 12 months up to the end of the data, for the deposit forecast.
         val nowFrom = maxOf(YearMonth.from(dataEnd).minusMonths(11).atDay(1), dataStart)
 
@@ -239,7 +267,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         if (netBilling) {
             val pricesFrom =
                 maxOf(
-                    listOfNotNull(from, billingFrom, nowFrom).minOf {
+                    listOfNotNull(from, billingFrom?.minusYears(1), nowFrom).minOf {
                         it.withDayOfMonth(1).minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
                     },
                     dataStart,
@@ -279,21 +307,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     )
                 else null
 
-            /** Net-billing of [sim] (the selected tariff) starting at [start], with its history. */
             fun settleFrom(start: LocalDate, sim: List<SimulationRow>, fee: Double) =
-                NetBilling.settle(
-                    sim,
-                    tariffs,
-                    tariff,
-                    rce,
-                    rcem,
-                    prefs.valuation,
-                    fee,
-                    historyOf(start).let { h ->
-                        if (h.isEmpty()) emptyList()
-                        else Analyzer.runFullAnalysis(h, 0.0, tariffs, tariff).simulation
-                    },
-                )
+                netBillingSettler(all, tariffs, tariff, rce, rcem, prefs.valuation, start)(sim, fee)
 
             val result = Analyzer.runFullAnalysis(recs, 0.0, tariffs, tariff, ratio)
             val nb = settle(result)
@@ -614,6 +629,72 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                         dynamic =
                             it.dynamic.copy(loading = false, result = result, failedDays = failed)
                     )
+                }
+            }
+    }
+
+    /** Cost since the settlement date day by day and the same days a year before. */
+    fun loadBillingTimeline() {
+        val a = _uiState.value.analysis ?: return
+        val b = a.sinceBilling ?: return
+        val all = records.value ?: return
+        val t = _uiState.value.billingTimeline
+        if (t.forAnalysis === a && (t.loading || t.result != null)) return
+        billingTimelineJob?.cancel()
+        billingTimelineJob =
+            viewModelScope.launch {
+                _uiState.update {
+                    it.copy(billingTimeline = BillingTimelineState(loading = true, forAnalysis = a))
+                }
+                val inputs = a.inputs
+                val result =
+                    withContext(Dispatchers.Default) {
+                        fun timelineOf(from: LocalDate, to: LocalDate, sim: List<SimulationRow>) =
+                            Billing.timeline(
+                                sim,
+                                from,
+                                to,
+                                inputs.tariffs,
+                                inputs.tariff,
+                                inputs.netMeteringRatio,
+                                if (inputs.prefs.mode != SettlementMode.NET_BILLING) null
+                                else
+                                    netBillingSettler(
+                                        all,
+                                        inputs.tariffs,
+                                        inputs.tariff,
+                                        inputs.rce,
+                                        inputs.rcem,
+                                        inputs.prefs.valuation,
+                                        from,
+                                    ),
+                            )
+                        val prevFrom = b.from.minusYears(1)
+                        val prevTo = b.from.minusDays(1)
+                        val previous =
+                            if (prevFrom < all.first().timestamp.toLocalDate()) null
+                            else
+                                Billing.toDate(
+                                    all,
+                                    prevFrom,
+                                    prevTo,
+                                    inputs.tariffs,
+                                    inputs.tariff,
+                                    inputs.netMeteringRatio,
+                                )
+                        BillingTimeline(
+                            timelineOf(b.from, b.to, b.result.simulation),
+                            previous?.let { timelineOf(prevFrom, prevTo, it.result.simulation) }
+                                ?: emptyList(),
+                        )
+                    }
+                _uiState.update {
+                    if (it.billingTimeline.forAnalysis !== a) it
+                    else
+                        it.copy(
+                            billingTimeline =
+                                it.billingTimeline.copy(loading = false, result = result)
+                        )
                 }
             }
     }

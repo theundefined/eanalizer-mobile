@@ -8,6 +8,7 @@ import com.theundefined.eanalizer.data.remote.EneaCustomer
 import com.theundefined.eanalizer.domain.AggregateRow
 import com.theundefined.eanalizer.domain.AnalysisResult
 import com.theundefined.eanalizer.domain.BaseLoad
+import com.theundefined.eanalizer.domain.BillingTimeline
 import com.theundefined.eanalizer.domain.BillingToDate
 import com.theundefined.eanalizer.domain.DailyTrends
 import com.theundefined.eanalizer.domain.DayProfile
@@ -127,6 +128,16 @@ data class DynamicState(
     val failedDays: Int = 0,
 )
 
+/**
+ * [Analysis.sinceBilling] day by day and the year before (computed on demand for one [Analysis];
+ * net-billing settles the range repeatedly, which is too slow for every analysis).
+ */
+data class BillingTimelineState(
+    val loading: Boolean = false,
+    val forAnalysis: Analysis? = null,
+    val result: BillingTimeline? = null,
+)
+
 /** Period cost of one tariff without and with the extra load. */
 data class ExtraLoadRow(val tariff: String, val before: Double, val after: Double)
 
@@ -200,5 +211,6 @@ data class UiState(
     val years: List<YearMonths> = emptyList(),
     val storage: StorageState = StorageState(),
     val dynamic: DynamicState = DynamicState(),
+    val billingTimeline: BillingTimelineState = BillingTimelineState(),
     val extraLoad: ExtraLoadState = ExtraLoadState(),
 )

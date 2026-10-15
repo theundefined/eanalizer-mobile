@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.data.local.SettlementMode
+import com.theundefined.eanalizer.domain.BillingPoint
 import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.UiState
 import com.theundefined.eanalizer.ui.kwh
@@ -35,7 +38,7 @@ import java.time.ZoneOffset
 
 /** Amount due since the last settlement date (main screen); asks to set the date when missing. */
 @Composable
-fun BillingCard(state: UiState, onSetDate: () -> Unit) {
+fun BillingCard(state: UiState, onSetDate: () -> Unit, onOpenChart: () -> Unit) {
     val date = state.prefs.billingDate
     SectionCard(title = stringResource(R.string.billing_title)) {
         if (date == null) {
@@ -94,6 +97,145 @@ fun BillingCard(state: UiState, onSetDate: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
             )
         MutedText(stringResource(R.string.billing_hint))
+        TextButton(onClick = onOpenChart) { Text(stringResource(R.string.billing_chart_open)) }
+    }
+}
+
+/**
+ * Cost and credit since the settlement date day by day, against the same days of the previous cycle
+ * (a year earlier) - each day as if the period were settled then.
+ */
+@Composable
+fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> Unit) {
+    val a = state.analysis
+    LaunchedEffect(a) { viewModel.loadBillingTimeline() }
+    val mode = state.prefs.mode
+    var showCredit by remember { mutableStateOf(true) }
+    SubScreen(stringResource(R.string.screen_billing_chart), onBack) {
+        val b = a?.sinceBilling
+        val t = state.billingTimeline.result?.takeIf { state.billingTimeline.forAnalysis === a }
+        if (b == null || t == null) {
+            item {
+                SectionCard {
+                    if (state.analyzing || state.billingTimeline.loading)
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                    else MutedText(stringResource(R.string.billing_unset))
+                }
+            }
+            return@SubScreen
+        }
+        item {
+            MutedText(
+                stringResource(
+                    R.string.billing_range,
+                    b.from.toString(),
+                    b.to.toString(),
+                    b.days,
+                    b.result.tariff,
+                )
+            )
+        }
+        val hasCredit = mode != SettlementMode.NONE && t.current.any { it.credit != null }
+        val credit = hasCredit && showCredit
+        val format: (Double) -> String =
+            if (!credit) ::zl else if (mode == SettlementMode.NET_BILLING) ::zl else ::kwh
+        fun value(p: BillingPoint) = if (credit) p.credit ?: 0.0 else p.cost
+        val prevFrom = t.previous.firstOrNull()?.date
+        fun offset(p: BillingPoint, start: LocalDate) = (p.date.toEpochDay() - start.toEpochDay())
+        val current = t.current.map { offset(it, b.from).toInt() to value(it) }
+        val previous = prevFrom?.let { s -> t.previous.map { offset(it, s).toInt() to value(it) } }
+        // Values at a day: the last point not after it (net-billing has every 7th day only),
+        // none past the end of the series.
+        fun at(points: List<Pair<Int, Double>>?, i: Int) =
+            points
+                ?.takeIf { it.isNotEmpty() && i <= it.last().first }
+                ?.lastOrNull { it.first <= i }
+                ?.second
+        val length = maxOf(current.last().first, previous?.lastOrNull()?.first ?: 0) + 1
+        item {
+            SectionCard {
+                if (hasCredit)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(
+                            selected = showCredit,
+                            onClick = { showCredit = true },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        if (mode == SettlementMode.NET_BILLING)
+                                            R.string.billing_chart_deposit
+                                        else R.string.billing_chart_credit
+                                    )
+                                )
+                            },
+                        )
+                        FilterChip(
+                            selected = !showCredit,
+                            onClick = { showCredit = false },
+                            label = { Text(stringResource(R.string.billing_chart_cost)) },
+                        )
+                    }
+                ComparisonLineChart(
+                    current = current,
+                    previous = previous ?: emptyList(),
+                    length = length,
+                    currentLabel = stringResource(R.string.billing_chart_current),
+                    previousLabel = stringResource(R.string.billing_chart_previous),
+                    format = format,
+                    label = { i ->
+                        val now = at(current, i)
+                        val before = at(previous, i)
+                        stringResource(
+                            R.string.billing_chart_value,
+                            i + 1,
+                            b.from.plusDays(i.toLong()).toString(),
+                            now?.let(format) ?: "—",
+                            prevFrom?.plusDays(i.toLong())?.toString() ?: "—",
+                            before?.let(format) ?: "—",
+                        )
+                    },
+                    hint = stringResource(R.string.billing_chart_tap),
+                    startLabel = b.from.toString(),
+                    endLabel = stringResource(R.string.billing_chart_day, length),
+                )
+            }
+        }
+        item {
+            SectionCard {
+                val today = current.last()
+                ValueRow(
+                    stringResource(R.string.billing_chart_now, b.to.toString()),
+                    format(today.second),
+                    emphasized = true,
+                )
+                if (previous != null && prevFrom != null) {
+                    at(previous, today.first)?.let {
+                        ValueRow(
+                            stringResource(
+                                R.string.billing_chart_year_ago,
+                                prevFrom.plusDays(today.first.toLong()).toString(),
+                            ),
+                            format(it),
+                        )
+                    }
+                    ValueRow(
+                        stringResource(
+                            R.string.billing_chart_previous_end,
+                            t.previous.last().date.toString(),
+                        ),
+                        format(previous.last().second),
+                    )
+                } else MutedText(stringResource(R.string.billing_chart_no_previous))
+            }
+        }
+        item {
+            MutedText(
+                stringResource(
+                    if (mode == SettlementMode.NET_BILLING) R.string.billing_chart_hint_nb
+                    else R.string.billing_chart_hint
+                )
+            )
+        }
     }
 }
 

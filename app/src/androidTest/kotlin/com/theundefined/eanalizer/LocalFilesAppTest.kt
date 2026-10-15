@@ -241,6 +241,17 @@ class LocalFilesAppTest {
     }
 
     @Test
+    fun billingTimelineComparesWithTheYearBefore() {
+        // The previous cycle (from 2024-11-01) is within the data, so both lines are drawn.
+        prepare("""{"mode":"NET_METERING","billingDate":"2025-11-01"}""")
+        waitFor(str(R.string.billing_chart_open))
+        nodes(str(R.string.billing_chart_open)).onFirst().performClick()
+        waitFor(str(R.string.billing_chart_previous_end, "2025-10-31"))
+        nodes(str(R.string.billing_chart_no_previous)).assertCountEquals(0)
+        screenshot("billing-timeline")
+    }
+
+    @Test
     fun rceReportDownloadsPsePrices() {
         prepare()
         waitFor(zl(cost2025("G11")))

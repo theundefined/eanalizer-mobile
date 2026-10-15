@@ -61,10 +61,43 @@ data class DailyTrends(val totalDays: Int, val surplusDays: Int) {
 
 /** Port of eanalizer `core.py` analyses. */
 object Analyzer {
-    private class ZoneAcc(val price: Double) {
+    internal class ZoneAcc(val price: Double) {
         var pobor = 0.0
         var oddanie = 0.0
         var koszt = 0.0
+    }
+
+    /**
+     * Net-metering of zone volumes [acc]: exported energy times [ratio] becomes credit consumed in
+     * zones ordered by price (most expensive first), leftover credit rolling over to cheaper zones.
+     * Returns zone stats (in the order of [acc]), the energy cost and the unused credit.
+     */
+    internal fun netMetering(
+        acc: Map<String, ZoneAcc>,
+        ratio: Double,
+    ): Triple<List<ZoneStats>, Double, Double> {
+        var cost = 0.0
+        var rollover = 0.0
+        val byName = HashMap<String, ZoneStats>()
+        for ((name, z) in acc.entries.sortedByDescending { it.value.price }) {
+            val magazyn = z.oddanie * ratio
+            val kredyt = magazyn + rollover
+            val doZaplaty = maxOf(0.0, z.pobor - kredyt)
+            cost += doZaplaty * z.price
+            byName[name] =
+                ZoneStats(
+                    name,
+                    z.price,
+                    z.pobor,
+                    z.oddanie,
+                    doZaplaty * z.price,
+                    magazyn,
+                    rollover,
+                    doZaplaty
+                )
+            rollover = maxOf(0.0, kredyt - z.pobor)
+        }
+        return Triple(acc.keys.map { byName.getValue(it) }, cost, rollover)
     }
 
     /**
@@ -164,30 +197,10 @@ object Analyzer {
         var energyCost: Double
         var unused: Double? = null
         if (netMeteringRatio != null) {
-            energyCost = 0.0
-            var rollover = 0.0
-            val byName = HashMap<String, ZoneStats>()
-            for ((name, z) in acc.entries.sortedByDescending { it.value.price }) {
-                val magazyn = z.oddanie * netMeteringRatio
-                val kredyt = magazyn + rollover
-                val doZaplaty = maxOf(0.0, z.pobor - kredyt)
-                val koszt = doZaplaty * z.price
-                energyCost += koszt
-                byName[name] =
-                    ZoneStats(
-                        name,
-                        z.price,
-                        z.pobor,
-                        z.oddanie,
-                        koszt,
-                        magazyn,
-                        rollover,
-                        doZaplaty
-                    )
-                rollover = maxOf(0.0, kredyt - z.pobor)
-            }
-            unused = rollover
-            zones = acc.keys.map { byName.getValue(it) }
+            val (z, cost, u) = netMetering(acc, netMeteringRatio)
+            zones = z
+            energyCost = cost
+            unused = u
         } else {
             zones = acc.map { (name, z) -> ZoneStats(name, z.price, z.pobor, z.oddanie, z.koszt) }
             energyCost = zones.sumOf { it.kosztPoboru }

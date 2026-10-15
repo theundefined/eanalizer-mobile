@@ -722,3 +722,116 @@ fun ValueBarChart(
         }
     }
 }
+
+/**
+ * Two series over x = `0 until length` (e.g. days since a date): [current] solid, [previous]
+ * dashed, both as sorted (x, value) points that may skip x values. Tapping selects an x ([label]
+ * describes it); the value range is printed above and below the chart.
+ */
+@Composable
+fun ComparisonLineChart(
+    current: List<Pair<Int, Double>>,
+    previous: List<Pair<Int, Double>>,
+    length: Int,
+    currentLabel: String,
+    previousLabel: String,
+    format: (Double) -> String,
+    label: @Composable (Int) -> String,
+    hint: String,
+    startLabel: String,
+    endLabel: String,
+    modifier: Modifier = Modifier,
+) {
+    val all = current + previous
+    if (all.isEmpty() || length < 1) return
+    val (currentColor, previousColor) = seriesColors()
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    var selected by remember(current, previous) { mutableStateOf<Int?>(null) }
+    val max = maxOf(all.maxOf { it.second }, 0.0)
+    val min = minOf(all.minOf { it.second }, 0.0)
+    val span = (max - min).coerceAtLeast(0.001)
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            LegendItem(currentColor, currentLabel)
+            if (previous.isNotEmpty()) DashedLegendItem(previousColor, previousLabel)
+        }
+        MutedText(selected?.let { label(it) } ?: hint)
+        MutedText(format(max))
+        Canvas(
+            modifier =
+                Modifier.fillMaxWidth().height(180.dp).pointerInput(current, previous) {
+                    detectTapGestures { pos ->
+                        val i =
+                            (pos.x / size.width * (length - 1) + 0.5f)
+                                .toInt()
+                                .coerceIn(0, length - 1)
+                        selected = if (selected == i) null else i
+                    }
+                }
+        ) {
+            fun x(i: Int) = if (length > 1) size.width * i / (length - 1) else size.width / 2
+            fun y(v: Double) = (size.height * (max - v) / span).toFloat()
+            val zeroY = y(0.0)
+            drawLine(gridColor, Offset(0f, zeroY), Offset(size.width, zeroY), 1.dp.toPx())
+            fun line(points: List<Pair<Int, Double>>, color: Color, dashed: Boolean) {
+                if (points.isEmpty()) return
+                val w = 2.dp.toPx()
+                if (points.size == 1) {
+                    drawCircle(color, w * 1.5f, Offset(x(points[0].first), y(points[0].second)))
+                    return
+                }
+                val path = Path()
+                points.forEachIndexed { j, (i, v) ->
+                    if (j == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v))
+                }
+                drawPath(
+                    path,
+                    color,
+                    style =
+                        Stroke(
+                            w,
+                            pathEffect =
+                                if (dashed) PathEffect.dashPathEffect(floatArrayOf(w * 3, w * 2))
+                                else null,
+                        ),
+                )
+            }
+            line(previous, previousColor, dashed = true)
+            line(current, currentColor, dashed = false)
+            selected?.let {
+                drawLine(
+                    gridColor,
+                    Offset(x(it), 0f),
+                    Offset(x(it), size.height),
+                    1.dp.toPx(),
+                )
+            }
+        }
+        MutedText(format(min))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            MutedText(startLabel)
+            Box(Modifier.weight(1f))
+            MutedText(endLabel)
+        }
+    }
+}
+
+@Composable
+private fun DashedLegendItem(color: Color, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Canvas(Modifier.size(width = 16.dp, height = 10.dp)) {
+            val w = 2.dp.toPx()
+            drawLine(
+                color,
+                Offset(0f, size.height / 2),
+                Offset(size.width, size.height / 2),
+                w,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(w * 2, w * 1.5f)),
+            )
+        }
+        MutedText(label)
+    }
+}
