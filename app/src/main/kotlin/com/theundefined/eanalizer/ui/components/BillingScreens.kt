@@ -140,7 +140,7 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
         val format: (Double) -> String =
             if (!credit) ::zl else if (mode == SettlementMode.NET_BILLING) ::zl else ::kwh
         fun value(p: BillingPoint) = if (credit) p.credit ?: 0.0 else p.cost
-        val prevFrom = t.previous.firstOrNull()?.date
+        val prevFrom = b.from.minusYears(1).takeIf { t.previous.isNotEmpty() }
         fun offset(p: BillingPoint, start: LocalDate) = (p.date.toEpochDay() - start.toEpochDay())
         val current = t.current.map { offset(it, b.from).toInt() to value(it) }
         val previous = prevFrom?.let { s -> t.previous.map { offset(it, s).toInt() to value(it) } }
