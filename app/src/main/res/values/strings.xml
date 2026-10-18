@@ -360,8 +360,9 @@
     <string name="billing_chart_year_ago">Rok wcześniej (%1$s)</string>
     <string name="billing_chart_previous_end">Rok wcześniej na koniec cyklu (%1$s)</string>
     <string name="billing_chart_no_previous">Brak danych z roku wcześniej do porównania.</string>
-    <string name="billing_chart_hint">Każdy dzień pokazuje stan tak, jakby rozliczenie nastąpiło tego dnia (opłaty stałe za dni, bez magazynu). Linia przerywana to ten sam okres rok wcześniej — od daty rozliczenia sprzed roku przez 12 miesięcy, więc widać, jak kredyt topniał zimą.</string>
-    <string name="billing_chart_hint_nb">Każdy punkt pokazuje stan tak, jakby rozliczenie nastąpiło tego dnia (opłaty stałe za dni, bez magazynu), liczony co 7 dni i na koniec danych. Depozyt powstaje z oddanej energii po zakończeniu miesiąca. Linia przerywana to ten sam okres rok wcześniej (12 miesięcy od daty rozliczenia sprzed roku).</string>
+    <string name="billing_chart_hint">Każdy dzień pokazuje stan tak, jakby rozliczenie nastąpiło tego dnia (opłaty stałe za dni, bez magazynu, według obecnego cennika i ustawień). Linia przerywana to ten sam okres rok wcześniej — od daty rozliczenia sprzed roku przez 12 miesięcy, więc widać, jak kredyt topniał zimą.</string>
+    <string name="billing_chart_hint_none">Każdy dzień pokazuje koszt tak, jakby rozliczenie nastąpiło tego dnia (opłaty stałe za dni, bez magazynu, według obecnego cennika). Linia przerywana to ten sam okres rok wcześniej — od daty rozliczenia sprzed roku przez 12 miesięcy.</string>
+    <string name="billing_chart_hint_nb">Każdy punkt pokazuje stan tak, jakby rozliczenie nastąpiło tego dnia (opłaty stałe za dni, bez magazynu), według obecnego cennika i ustawień, liczony co 7 dni i na koniec danych. Depozyt powstaje z oddanej energii po zakończeniu miesiąca. Linia przerywana to ten sam okres rok wcześniej (12 miesięcy od daty rozliczenia sprzed roku).</string>
     <string name="billing_date">Data ostatniego rozliczenia</string>
     <string name="billing_clear">Usuń</string>
     <string name="billing_paid_field">Wpłaty od rozliczenia [zł]</string>

@@ -129,4 +129,28 @@ object Billing {
         }
         return points
     }
+
+    /**
+     * The cycle a year before a period starting at [from]: from the same date a year earlier to the
+     * day before [from]; null when the data ([dataStart]) starts later (a partial cycle would not
+     * be comparable).
+     */
+    fun previousCycle(from: LocalDate, dataStart: LocalDate): Pair<LocalDate, LocalDate>? {
+        val start = from.minusYears(1)
+        return if (start < dataStart) null else start to from.minusDays(1)
+    }
+
+    /** [timeline] of [records] in `[from, to]` ([toDate] without storage); empty without data. */
+    fun timelineOf(
+        records: List<HourlyRecord>,
+        from: LocalDate,
+        to: LocalDate,
+        table: TariffTable,
+        tariff: String,
+        netMeteringRatio: Double? = null,
+        settle: ((List<SimulationRow>, Double) -> NetBillingResult?)? = null,
+    ): List<BillingPoint> =
+        toDate(records, from, to, table, tariff, netMeteringRatio)?.let {
+            timeline(it.result.simulation, from, to, table, tariff, netMeteringRatio, settle)
+        } ?: emptyList()
 }

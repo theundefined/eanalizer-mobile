@@ -136,6 +136,8 @@ data class BillingTimelineState(
     val loading: Boolean = false,
     val forAnalysis: Analysis? = null,
     val result: BillingTimeline? = null,
+    /** Net-billing: no prices for the previous cycle could be downloaded. */
+    val pricesUnavailable: Boolean = false,
 )
 
 /** Period cost of one tariff without and with the extra load. */

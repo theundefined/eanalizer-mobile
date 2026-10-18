@@ -106,4 +106,59 @@ class BillingTimelineTest {
         // Only the prorated fee (1 zł a day) until the import is covered by the credit.
         assertEquals(listOf(1.0, 2.0, 3.0, 4.0), t.map { it.cost })
     }
+
+    @Test
+    fun previousCycleIsTheYearBeforeTheSettlementDate() {
+        val start = LocalDate.of(2023, 1, 1)
+        assertEquals(
+            LocalDate.of(2024, 11, 1) to LocalDate.of(2025, 10, 31),
+            Billing.previousCycle(LocalDate.of(2025, 11, 1), start),
+        )
+        // 29 February: a year before is 28 February, the cycle has 366 days.
+        val leap = Billing.previousCycle(LocalDate.of(2024, 2, 29), start)!!
+        assertEquals(LocalDate.of(2023, 2, 28) to LocalDate.of(2024, 2, 28), leap)
+        assertEquals(366L, leap.second.toEpochDay() - leap.first.toEpochDay() + 1)
+        // Data starting after the cycle's start: no (partial) comparison.
+        assertNull(Billing.previousCycle(LocalDate.of(2025, 11, 1), LocalDate.of(2024, 11, 5)))
+        assertEquals(
+            LocalDate.of(2024, 11, 5) to LocalDate.of(2025, 11, 4),
+            Billing.previousCycle(LocalDate.of(2025, 11, 5), LocalDate.of(2024, 11, 5)),
+        )
+    }
+
+    @Test
+    fun previousCycleTimelineEndsAtItsToDateInEveryMode() {
+        val (pFrom, pTo) =
+            Billing.previousCycle(LocalDate.of(2025, 11, 1), LocalDate.of(2024, 10, 1))!!
+        val none = Billing.timelineOf(records, pFrom, pTo, table, "G12w")
+        assertEquals(
+            Billing.toDate(records, pFrom, pTo, table, "G12w")!!.total,
+            none.last().cost,
+            eps
+        )
+        assertEquals(365, none.size)
+
+        val nm = Billing.timelineOf(records, pFrom, pTo, table, "G12w", 0.8)
+        val bNm = Billing.toDate(records, pFrom, pTo, table, "G12w", 0.8)!!
+        assertEquals(bNm.total, nm.last().cost, eps)
+        assertEquals(bNm.result.unusedCredit!!, nm.last().credit!!, eps)
+
+        val settle = settler(pFrom)
+        val nb = Billing.timelineOf(records, pFrom, pTo, table, "G12w", settle = settle)
+        val bNb = Billing.toDate(records, pFrom, pTo, table, "G12w", settle = settle)!!
+        assertEquals(bNb.total, nb.last().cost, eps)
+        assertEquals(bNb.netBilling!!.depozytPozostaly, nb.last().credit!!, eps)
+        assertEquals(pTo, nb.last().date)
+
+        assertTrue(
+            Billing.timelineOf(
+                    records,
+                    LocalDate.of(2027, 1, 1),
+                    LocalDate.of(2027, 2, 1),
+                    table,
+                    "G12w"
+                )
+                .isEmpty()
+        )
+    }
 }

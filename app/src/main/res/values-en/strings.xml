@@ -358,8 +358,9 @@
     <string name="billing_chart_year_ago">A year before (%1$s)</string>
     <string name="billing_chart_previous_end">A year before at the end of the cycle (%1$s)</string>
     <string name="billing_chart_no_previous">No data from a year before to compare.</string>
-    <string name="billing_chart_hint">Each day shows the state as if the period were settled that day (fixed fees per day, no storage). The dashed line is the same period a year before — 12 months from the settlement date a year earlier, so you can see how the credit melted in winter.</string>
-    <string name="billing_chart_hint_nb">Each point shows the state as if the period were settled that day (fixed fees per day, no storage), computed every 7 days and at the end of the data. A deposit is created from exported energy once the month ends. The dashed line is the same period a year before (12 months from the settlement date a year earlier).</string>
+    <string name="billing_chart_hint">Each day shows the state as if the period were settled that day (fixed fees per day, no storage, with the current prices and settings). The dashed line is the same period a year before — 12 months from the settlement date a year earlier, so you can see how the credit melted in winter.</string>
+    <string name="billing_chart_hint_none">Each day shows the cost as if the period were settled that day (fixed fees per day, no storage, with the current prices). The dashed line is the same period a year before — 12 months from the settlement date a year earlier.</string>
+    <string name="billing_chart_hint_nb">Each point shows the state as if the period were settled that day (fixed fees per day, no storage), with the current prices and settings, computed every 7 days and at the end of the data. A deposit is created from exported energy once the month ends. The dashed line is the same period a year before (12 months from the settlement date a year earlier).</string>
     <string name="billing_date">Last settlement date</string>
     <string name="billing_clear">Remove</string>
     <string name="billing_paid_field">Paid since settlement [zł]</string>

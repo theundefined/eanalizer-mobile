@@ -109,7 +109,8 @@ fun BillingCard(state: UiState, onSetDate: () -> Unit, onOpenChart: () -> Unit) 
 fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> Unit) {
     val a = state.analysis
     LaunchedEffect(a) { viewModel.loadBillingTimeline() }
-    val mode = state.prefs.mode
+    // The mode the shown numbers were computed in (prefs change before the analysis is redone).
+    val mode = a?.inputs?.prefs?.mode ?: state.prefs.mode
     var showCredit by remember { mutableStateOf(true) }
     SubScreen(stringResource(R.string.screen_billing_chart), onBack) {
         val b = a?.sinceBilling
@@ -134,6 +135,18 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                     b.result.tariff,
                 )
             )
+            val date = a.inputs.prefs.billingDate
+            if (date != null && b.from.toString() != date)
+                MutedText(stringResource(R.string.billing_data_from, date, b.from.toString()))
+            if (
+                mode == SettlementMode.NET_BILLING &&
+                    (a.pricesUnavailable || state.billingTimeline.pricesUnavailable)
+            )
+                Text(
+                    stringResource(R.string.nb_prices_unavailable),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
         }
         val hasCredit = mode != SettlementMode.NONE && t.current.any { it.credit != null }
         val credit = hasCredit && showCredit
@@ -144,13 +157,10 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
         fun offset(p: BillingPoint, start: LocalDate) = (p.date.toEpochDay() - start.toEpochDay())
         val current = t.current.map { offset(it, b.from).toInt() to value(it) }
         val previous = prevFrom?.let { s -> t.previous.map { offset(it, s).toInt() to value(it) } }
-        // Values at a day: the last point not after it (net-billing has every 7th day only),
-        // none past the end of the series.
+        // The point shown for a day: the last one not after it (net-billing has every 7th day
+        // only), none past the end of the series.
         fun at(points: List<Pair<Int, Double>>?, i: Int) =
-            points
-                ?.takeIf { it.isNotEmpty() && i <= it.last().first }
-                ?.lastOrNull { it.first <= i }
-                ?.second
+            points?.takeIf { it.isNotEmpty() && i <= it.last().first }?.lastOrNull { it.first <= i }
         val length = maxOf(current.last().first, previous?.lastOrNull()?.first ?: 0) + 1
         item {
             SectionCard {
@@ -183,15 +193,17 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                     previousLabel = stringResource(R.string.billing_chart_previous),
                     format = format,
                     label = { i ->
+                        // Dates of the points actually shown (net-billing: up to 6 days earlier).
                         val now = at(current, i)
                         val before = at(previous, i)
                         stringResource(
                             R.string.billing_chart_value,
-                            i + 1,
-                            b.from.plusDays(i.toLong()).toString(),
-                            now?.let(format) ?: "—",
-                            prevFrom?.plusDays(i.toLong())?.toString() ?: "—",
-                            before?.let(format) ?: "—",
+                            (now?.first ?: i) + 1,
+                            b.from.plusDays((now?.first ?: i).toLong()).toString(),
+                            now?.second?.let(format) ?: "—",
+                            before?.let { prevFrom?.plusDays(it.first.toLong())?.toString() }
+                                ?: "—",
+                            before?.second?.let(format) ?: "—",
                         )
                     },
                     hint = stringResource(R.string.billing_chart_tap),
@@ -209,13 +221,13 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                     emphasized = true,
                 )
                 if (previous != null && prevFrom != null) {
-                    at(previous, today.first)?.let {
+                    at(previous, today.first)?.let { (i, v) ->
                         ValueRow(
                             stringResource(
                                 R.string.billing_chart_year_ago,
-                                prevFrom.plusDays(today.first.toLong()).toString(),
+                                prevFrom.plusDays(i.toLong()).toString(),
                             ),
-                            format(it),
+                            format(v),
                         )
                     }
                     ValueRow(
@@ -231,8 +243,11 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
         item {
             MutedText(
                 stringResource(
-                    if (mode == SettlementMode.NET_BILLING) R.string.billing_chart_hint_nb
-                    else R.string.billing_chart_hint
+                    when (mode) {
+                        SettlementMode.NET_BILLING -> R.string.billing_chart_hint_nb
+                        SettlementMode.NET_METERING -> R.string.billing_chart_hint
+                        else -> R.string.billing_chart_hint_none
+                    }
                 )
             )
         }

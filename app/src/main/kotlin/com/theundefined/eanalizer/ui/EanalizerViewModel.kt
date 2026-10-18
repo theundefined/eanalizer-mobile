@@ -48,6 +48,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -267,7 +268,7 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
         if (netBilling) {
             val pricesFrom =
                 maxOf(
-                    listOfNotNull(from, billingFrom?.minusYears(1), nowFrom).minOf {
+                    listOfNotNull(from, billingFrom, nowFrom).minOf {
                         it.withDayOfMonth(1).minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
                     },
                     dataStart,
@@ -647,45 +648,65 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     it.copy(billingTimeline = BillingTimelineState(loading = true, forAnalysis = a))
                 }
                 val inputs = a.inputs
+                val netBilling = inputs.prefs.mode == SettlementMode.NET_BILLING
+                val prev = Billing.previousCycle(b.from, all.first().timestamp.toLocalDate())
+                // Net-billing prices of the previous cycle and its history (the analysis has only
+                // the ranges it needs itself); cached after the first download.
+                var rce = inputs.rce
+                var rcem = inputs.rcem
+                if (netBilling && prev != null) {
+                    val pricesFrom =
+                        prev.first.withDayOfMonth(1).minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
+                    val months = NetBilling.monthsOf(Periods.filter(all, pricesFrom, prev.second))
+                    rcem = runCatching { repo.rcemPrices(months) }.getOrDefault(emptyMap()) + rcem
+                    if (inputs.prefs.valuation == NetBillingValuation.RCE)
+                        rce =
+                            runCatching { repo.rcePrices(pricesFrom, prev.second).first }
+                                .getOrDefault(emptyMap()) + rce
+                }
                 val result =
                     withContext(Dispatchers.Default) {
-                        fun timelineOf(from: LocalDate, to: LocalDate, sim: List<SimulationRow>) =
-                            Billing.timeline(
-                                sim,
-                                from,
-                                to,
-                                inputs.tariffs,
-                                inputs.tariff,
-                                inputs.netMeteringRatio,
-                                if (inputs.prefs.mode != SettlementMode.NET_BILLING) null
-                                else
-                                    netBillingSettler(
+                        val job = coroutineContext[Job]
+                        fun settler(from: LocalDate) =
+                            if (!netBilling) null
+                            else
+                                netBillingSettler(
                                         all,
                                         inputs.tariffs,
                                         inputs.tariff,
-                                        inputs.rce,
-                                        inputs.rcem,
+                                        rce,
+                                        rcem,
                                         inputs.prefs.valuation,
                                         from,
-                                    ),
-                            )
-                        val prevFrom = b.from.minusYears(1)
-                        val prevTo = b.from.minusDays(1)
-                        val previous =
-                            if (prevFrom < all.first().timestamp.toLocalDate()) null
-                            else
-                                Billing.toDate(
+                                    )
+                                    .let { settle ->
+                                        { sim: List<SimulationRow>, fee: Double ->
+                                            // Stop early when a newer analysis cancels the job.
+                                            job?.ensureActive()
+                                            settle(sim, fee)
+                                        }
+                                    }
+                        BillingTimeline(
+                            Billing.timeline(
+                                b.result.simulation,
+                                b.from,
+                                b.to,
+                                inputs.tariffs,
+                                inputs.tariff,
+                                inputs.netMeteringRatio,
+                                settler(b.from),
+                            ),
+                            prev?.let { (from, to) ->
+                                Billing.timelineOf(
                                     all,
-                                    prevFrom,
-                                    prevTo,
+                                    from,
+                                    to,
                                     inputs.tariffs,
                                     inputs.tariff,
                                     inputs.netMeteringRatio,
+                                    settler(from),
                                 )
-                        BillingTimeline(
-                            timelineOf(b.from, b.to, b.result.simulation),
-                            previous?.let { timelineOf(prevFrom, prevTo, it.result.simulation) }
-                                ?: emptyList(),
+                            } ?: emptyList(),
                         )
                     }
                 _uiState.update {
@@ -693,7 +714,15 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                     else
                         it.copy(
                             billingTimeline =
-                                it.billingTimeline.copy(loading = false, result = result)
+                                it.billingTimeline.copy(
+                                    loading = false,
+                                    result = result,
+                                    pricesUnavailable =
+                                        netBilling &&
+                                            prev != null &&
+                                            rcem.isEmpty() &&
+                                            rce.isEmpty(),
+                                )
                         )
                 }
             }
