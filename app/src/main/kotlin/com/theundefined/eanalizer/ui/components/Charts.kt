@@ -741,7 +741,9 @@ fun ComparisonLineChart(
     startLabel: String,
     endLabel: String,
     modifier: Modifier = Modifier,
-    /** Further dashed series (cycles 2, 3, ... years back), fainter the older, with legend names. */
+    /**
+     * Further dashed series (cycles 2, 3, ... years back), fainter the older, with legend names.
+     */
     older: List<Pair<String, List<Pair<Int, Double>>>> = emptyList(),
 ) {
     val all = current + previous + older.flatMap { it.second }

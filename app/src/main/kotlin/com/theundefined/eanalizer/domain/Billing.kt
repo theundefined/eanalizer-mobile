@@ -137,9 +137,9 @@ object Billing {
                 val toPay = zones.sumOf { it.energiaDoOplacenia ?: 0.0 }
                 points += BillingPoint(day, cost + fees, unused, unused - toPay, zones)
             } else {
-                val zones =
-                    acc.map { (n, z) -> ZoneStats(n, z.price, z.pobor, z.oddanie, z.koszt) }
-                points += BillingPoint(day, zones.sumOf { it.kosztPoboru } + fees, null, null, zones)
+                val zones = acc.map { (n, z) -> ZoneStats(n, z.price, z.pobor, z.oddanie, z.koszt) }
+                points +=
+                    BillingPoint(day, zones.sumOf { it.kosztPoboru } + fees, null, null, zones)
             }
             day = day.plusDays(1)
         }

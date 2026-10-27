@@ -166,7 +166,8 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
         // only), none past the end of the series.
         fun at(points: List<Pair<Int, Double>>?, i: Int) =
             points?.takeIf { it.isNotEmpty() && i <= it.last().first }?.lastOrNull { it.first <= i }
-        val length = maxOf(
+        val length =
+            maxOf(
                 current.last().first,
                 previous?.lastOrNull()?.first ?: 0,
                 older.maxOfOrNull { it.second.last().first } ?: 0,
