@@ -649,14 +649,25 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 val inputs = a.inputs
                 val netBilling = inputs.prefs.mode == SettlementMode.NET_BILLING
-                val prev = Billing.previousCycle(b.from, all.first().timestamp.toLocalDate())
+                val dataStart = all.first().timestamp.toLocalDate()
+                // Full cycles a year, two years, ... before the current one while data reaches.
+                val cycles =
+                    generateSequence(1) { it + 1 }
+                        .map { Billing.previousCycle(b.from.minusYears(it - 1L), dataStart) }
+                        .takeWhile { it != null }
+                        .filterNotNull()
+                        .toList()
+                val prev = cycles.firstOrNull()
+                val oldest = cycles.lastOrNull()
                 // Net-billing prices of the previous cycle and its history (the analysis has only
                 // the ranges it needs itself); cached after the first download.
                 var rce = inputs.rce
                 var rcem = inputs.rcem
-                if (netBilling && prev != null) {
+                if (netBilling && prev != null && oldest != null) {
                     val pricesFrom =
-                        prev.first.withDayOfMonth(1).minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
+                        oldest.first
+                            .withDayOfMonth(1)
+                            .minusMonths(NetBilling.DEPOSIT_VALIDITY_MONTHS)
                     val months = NetBilling.monthsOf(Periods.filter(all, pricesFrom, prev.second))
                     rcem = runCatching { repo.rcemPrices(months) }.getOrDefault(emptyMap()) + rcem
                     if (inputs.prefs.valuation == NetBillingValuation.RCE)
@@ -686,6 +697,18 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                                             settle(sim, fee)
                                         }
                                     }
+                        val past =
+                            cycles.map { (from, to) ->
+                                Billing.timelineOf(
+                                    all,
+                                    from,
+                                    to,
+                                    inputs.tariffs,
+                                    inputs.tariff,
+                                    inputs.netMeteringRatio,
+                                    settler(from),
+                                )
+                            }
                         BillingTimeline(
                             Billing.timeline(
                                 b.result.simulation,
@@ -696,17 +719,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                                 inputs.netMeteringRatio,
                                 settler(b.from),
                             ),
-                            prev?.let { (from, to) ->
-                                Billing.timelineOf(
-                                    all,
-                                    from,
-                                    to,
-                                    inputs.tariffs,
-                                    inputs.tariff,
-                                    inputs.netMeteringRatio,
-                                    settler(from),
-                                )
-                            } ?: emptyList(),
+                            past.firstOrNull() ?: emptyList(),
+                            past.drop(1).filter { it.isNotEmpty() },
                         )
                     }
                 _uiState.update {

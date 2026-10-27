@@ -741,12 +741,14 @@ fun ComparisonLineChart(
     startLabel: String,
     endLabel: String,
     modifier: Modifier = Modifier,
+    /** Further dashed series (cycles 2, 3, ... years back), fainter the older, with legend names. */
+    older: List<Pair<String, List<Pair<Int, Double>>>> = emptyList(),
 ) {
-    val all = current + previous
+    val all = current + previous + older.flatMap { it.second }
     if (all.isEmpty() || length < 1) return
     val (currentColor, previousColor) = seriesColors()
     val gridColor = MaterialTheme.colorScheme.outlineVariant
-    var selected by remember(current, previous) { mutableStateOf<Int?>(null) }
+    var selected by remember(current, previous, older) { mutableStateOf<Int?>(null) }
     val max = maxOf(all.maxOf { it.second }, 0.0)
     val min = minOf(all.minOf { it.second }, 0.0)
     val span = (max - min).coerceAtLeast(0.001)
@@ -755,11 +757,17 @@ fun ComparisonLineChart(
             LegendItem(currentColor, currentLabel)
             if (previous.isNotEmpty()) DashedLegendItem(previousColor, previousLabel)
         }
+        if (older.isNotEmpty())
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                older.forEachIndexed { k, (name, _) ->
+                    DashedLegendItem(previousColor.copy(alpha = olderAlpha(k)), name)
+                }
+            }
         MutedText(selected?.let { label(it) } ?: hint)
         MutedText(format(max))
         Canvas(
             modifier =
-                Modifier.fillMaxWidth().height(180.dp).pointerInput(current, previous) {
+                Modifier.fillMaxWidth().height(180.dp).pointerInput(current, previous, older) {
                     detectTapGestures { pos ->
                         val i =
                             (pos.x / size.width * (length - 1) + 0.5f)
@@ -796,6 +804,9 @@ fun ComparisonLineChart(
                         ),
                 )
             }
+            older.asReversed().forEachIndexed { r, (_, points) ->
+                line(points, previousColor.copy(alpha = olderAlpha(older.size - 1 - r)), true)
+            }
             line(previous, previousColor, dashed = true)
             line(current, currentColor, dashed = false)
             selected?.let {
@@ -815,6 +826,9 @@ fun ComparisonLineChart(
         }
     }
 }
+
+/** Opacity of the dashed line of the [k]th older cycle (0 = two years back). */
+private fun olderAlpha(k: Int) = (0.7f - 0.15f * k).coerceAtLeast(0.25f)
 
 @Composable
 private fun DashedLegendItem(color: Color, label: String) {

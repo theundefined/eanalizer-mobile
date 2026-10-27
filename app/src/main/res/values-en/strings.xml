@@ -351,6 +351,7 @@
     <string name="billing_chart_cost">Cost since settlement</string>
     <string name="billing_chart_current">This period</string>
     <string name="billing_chart_previous">A year before</string>
+    <string name="billing_chart_zones">Split by tariff zone (now)</string>
     <string name="billing_chart_tap">Tap the chart to see the values of a day</string>
     <string name="billing_chart_value">Day %1$d: %2$s — %3$s · a year before %4$s — %5$s</string>
     <string name="billing_chart_day">day %1$d</string>

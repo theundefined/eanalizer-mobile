@@ -29,13 +29,26 @@ data class BillingToDate(
  * fees prorated to that day) and the credit left - unused net-metering credit in kWh, or the
  * net-billing deposit left in zł; null without a settlement of exported energy.
  */
-data class BillingPoint(val date: LocalDate, val cost: Double, val credit: Double?)
+data class BillingPoint(
+    val date: LocalDate,
+    val cost: Double,
+    val credit: Double?,
+    /**
+     * Net-metering only: kWh balance, unused credit minus energy still to pay for (negative when
+     * the exported energy did not cover the consumption); null elsewhere.
+     */
+    val balance: Double? = null,
+    /** Per-zone (tariff) split of the day's state; empty with a net-billing settlement. */
+    val zones: List<ZoneStats> = emptyList(),
+)
 
 /** Cost since the settlement date day by day, and the same days of the year before. */
 data class BillingTimeline(
     val current: List<BillingPoint>,
     /** The whole previous cycle (a year before the settlement date up to the day before it). */
     val previous: List<BillingPoint>,
+    /** Cycles 2, 3, ... years before the current one (nearest first), as full as [previous]. */
+    val older: List<List<BillingPoint>> = emptyList(),
 )
 
 object Billing {
@@ -120,10 +133,13 @@ object Billing {
                         points += BillingPoint(day, it.calkowityKoszt, it.depozytPozostaly)
                     }
             } else if (netMeteringRatio != null) {
-                val (_, cost, unused) = Analyzer.netMetering(acc, netMeteringRatio)
-                points += BillingPoint(day, cost + fees, unused)
+                val (zones, cost, unused) = Analyzer.netMetering(acc, netMeteringRatio)
+                val toPay = zones.sumOf { it.energiaDoOplacenia ?: 0.0 }
+                points += BillingPoint(day, cost + fees, unused, unused - toPay, zones)
             } else {
-                points += BillingPoint(day, acc.values.sumOf { it.koszt } + fees, null)
+                val zones =
+                    acc.map { (n, z) -> ZoneStats(n, z.price, z.pobor, z.oddanie, z.koszt) }
+                points += BillingPoint(day, zones.sumOf { it.kosztPoboru } + fees, null, null, zones)
             }
             day = day.plusDays(1)
         }

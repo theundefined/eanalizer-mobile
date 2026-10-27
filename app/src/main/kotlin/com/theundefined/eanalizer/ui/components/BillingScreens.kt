@@ -152,16 +152,25 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
         val credit = hasCredit && showCredit
         val format: (Double) -> String =
             if (!credit) ::zl else if (mode == SettlementMode.NET_BILLING) ::zl else ::kwh
-        fun value(p: BillingPoint) = if (credit) p.credit ?: 0.0 else p.cost
+        fun value(p: BillingPoint) = if (credit) p.balance ?: p.credit ?: 0.0 else p.cost
         val prevFrom = b.from.minusYears(1).takeIf { t.previous.isNotEmpty() }
         fun offset(p: BillingPoint, start: LocalDate) = (p.date.toEpochDay() - start.toEpochDay())
         val current = t.current.map { offset(it, b.from).toInt() to value(it) }
         val previous = prevFrom?.let { s -> t.previous.map { offset(it, s).toInt() to value(it) } }
+        val older =
+            t.older.mapIndexed { k, pts ->
+                val s = b.from.minusYears(k + 2L)
+                s.toString() to pts.map { offset(it, s).toInt() to value(it) }
+            }
         // The point shown for a day: the last one not after it (net-billing has every 7th day
         // only), none past the end of the series.
         fun at(points: List<Pair<Int, Double>>?, i: Int) =
             points?.takeIf { it.isNotEmpty() && i <= it.last().first }?.lastOrNull { it.first <= i }
-        val length = maxOf(current.last().first, previous?.lastOrNull()?.first ?: 0) + 1
+        val length = maxOf(
+                current.last().first,
+                previous?.lastOrNull()?.first ?: 0,
+                older.maxOfOrNull { it.second.last().first } ?: 0,
+            ) + 1
         item {
             SectionCard {
                 if (hasCredit)
@@ -188,6 +197,7 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                 ComparisonLineChart(
                     current = current,
                     previous = previous ?: emptyList(),
+                    older = older,
                     length = length,
                     currentLabel = stringResource(R.string.billing_chart_current),
                     previousLabel = stringResource(R.string.billing_chart_previous),
@@ -196,6 +206,10 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                         // Dates of the points actually shown (net-billing: up to 6 days earlier).
                         val now = at(current, i)
                         val before = at(previous, i)
+                        val others =
+                            older.joinToString("") { (name, pts) ->
+                                at(pts, i)?.let { " · $name: ${format(it.second)}" } ?: ""
+                            }
                         stringResource(
                             R.string.billing_chart_value,
                             (now?.first ?: i) + 1,
@@ -204,7 +218,7 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                             before?.let { prevFrom?.plusDays(it.first.toLong())?.toString() }
                                 ?: "—",
                             before?.second?.let(format) ?: "—",
-                        )
+                        ) + others
                     },
                     hint = stringResource(R.string.billing_chart_tap),
                     startLabel = b.from.toString(),
@@ -240,6 +254,26 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                 } else MutedText(stringResource(R.string.billing_chart_no_previous))
             }
         }
+        val zones = t.current.last().zones
+        if (zones.size > 1)
+            item {
+                SectionCard {
+                    MutedText(stringResource(R.string.billing_chart_zones))
+                    zones.forEach { z ->
+                        val text =
+                            when {
+                                credit && z.energiaDoOplacenia != null ->
+                                    kwh(
+                                        (z.magazynWStrefie ?: 0.0) + (z.kredytZPoprzedniej ?: 0.0) -
+                                            z.poborZSieci
+                                    )
+                                credit -> kwh(z.poborZSieci)
+                                else -> "${kwh(z.poborZSieci)} · ${zl(z.kosztPoboru)}"
+                            }
+                        ValueRow(z.zone, text)
+                    }
+                }
+            }
         item {
             MutedText(
                 stringResource(
