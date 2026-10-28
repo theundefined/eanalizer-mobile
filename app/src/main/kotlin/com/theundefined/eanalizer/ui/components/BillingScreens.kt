@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.theundefined.eanalizer.R
 import com.theundefined.eanalizer.data.local.SettlementMode
 import com.theundefined.eanalizer.domain.BillingPoint
+import com.theundefined.eanalizer.domain.ZoneStats
 import com.theundefined.eanalizer.ui.EanalizerViewModel
 import com.theundefined.eanalizer.ui.UiState
 import com.theundefined.eanalizer.ui.kwh
@@ -112,6 +113,7 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
     // The mode the shown numbers were computed in (prefs change before the analysis is redone).
     val mode = a?.inputs?.prefs?.mode ?: state.prefs.mode
     var showCredit by remember { mutableStateOf(true) }
+    var zoneName by remember { mutableStateOf<String?>(null) }
     SubScreen(stringResource(R.string.screen_billing_chart), onBack) {
         val b = a?.sinceBilling
         val t = state.billingTimeline.result?.takeIf { state.billingTimeline.forAnalysis === a }
@@ -152,7 +154,19 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
         val credit = hasCredit && showCredit
         val format: (Double) -> String =
             if (!credit) ::zl else if (mode == SettlementMode.NET_BILLING) ::zl else ::kwh
-        fun value(p: BillingPoint) = if (credit) p.balance ?: p.credit ?: 0.0 else p.cost
+        val zoneNames = t.current.last().zones.map { it.zone }.takeIf { it.size > 1 }.orEmpty()
+        val zone = zoneName?.takeIf { it in zoneNames }
+        // One tariff zone only: credit left in it (own credit plus what rolled over, minus its
+        // consumption) or its cost of energy; zones carry no fixed fees.
+        fun zoneValue(z: ZoneStats?) =
+            when {
+                z == null -> 0.0
+                credit -> (z.magazynWStrefie ?: 0.0) + (z.kredytZPoprzedniej ?: 0.0) - z.poborZSieci
+                else -> z.kosztPoboru
+            }
+        fun value(p: BillingPoint) =
+            if (zone != null) zoneValue(p.zones.firstOrNull { it.zone == zone })
+            else if (credit) p.balance ?: p.credit ?: 0.0 else p.cost
         val prevFrom = b.from.minusYears(1).takeIf { t.previous.isNotEmpty() }
         fun offset(p: BillingPoint, start: LocalDate) = (p.date.toEpochDay() - start.toEpochDay())
         val current = t.current.map { offset(it, b.from).toInt() to value(it) }
@@ -194,6 +208,21 @@ fun BillingTimelineScreen(state: UiState, viewModel: EanalizerViewModel, onBack:
                             onClick = { showCredit = false },
                             label = { Text(stringResource(R.string.billing_chart_cost)) },
                         )
+                    }
+                if (zoneNames.isNotEmpty())
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(
+                            selected = zone == null,
+                            onClick = { zoneName = null },
+                            label = { Text(stringResource(R.string.billing_chart_all_zones)) },
+                        )
+                        zoneNames.forEach { n ->
+                            FilterChip(
+                                selected = zone == n,
+                                onClick = { zoneName = n },
+                                label = { Text(n) },
+                            )
+                        }
                     }
                 ComparisonLineChart(
                     current = current,

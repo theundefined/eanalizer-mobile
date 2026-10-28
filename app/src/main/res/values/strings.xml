@@ -353,6 +353,7 @@
     <string name="billing_chart_cost">Koszt od rozliczenia</string>
     <string name="billing_chart_current">Ten okres</string>
     <string name="billing_chart_previous">Rok wcześniej</string>
+    <string name="billing_chart_all_zones">Wszystkie strefy</string>
     <string name="billing_chart_zones">Podział na strefy taryfy (teraz)</string>
     <string name="billing_chart_tap">Dotknij wykresu, aby zobaczyć wartości danego dnia</string>
     <string name="billing_chart_value">Dzień %1$d: %2$s — %3$s · rok wcześniej %4$s — %5$s</string>
