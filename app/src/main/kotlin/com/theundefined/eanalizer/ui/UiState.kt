@@ -52,6 +52,11 @@ data class ComparisonZone(
     val kwh: Double,
     val energy: Double,
     val distribution: Double,
+    /**
+     * Net-metering credit left in this zone after covering its draw: how much more could be drawn
+     * here without paying this zone's rate (null without net-metering).
+     */
+    val reserveKwh: Double? = null,
 )
 
 /** Everything derived from records + prefs + tariffs for the selected period. */

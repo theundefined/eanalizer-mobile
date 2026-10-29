@@ -355,6 +355,10 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                                         z.poborZSieci,
                                         z.kosztPoboru - paid * dist,
                                         paid * dist,
+                                        z.magazynWStrefie?.let {
+                                            (it + (z.kredytZPoprzedniej ?: 0.0) - z.poborZSieci)
+                                                .coerceAtLeast(0.0)
+                                        },
                                     )
                                 }
                             }

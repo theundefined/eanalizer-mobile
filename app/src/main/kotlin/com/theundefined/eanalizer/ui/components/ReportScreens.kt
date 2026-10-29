@@ -93,20 +93,31 @@ fun CompareScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
                     )
                     if (row.zones.isNotEmpty()) {
                         HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                        val w = listOf(1.2f, 1f, 1f, 1f)
+                        val showReserve = row.zones.any { it.reserveKwh != null }
+                        val w =
+                            if (showReserve) listOf(1.2f, 1f, 1f, 1f, 1f)
+                            else listOf(1.2f, 1f, 1f, 1f)
                         TableRow(
-                            listOf(
+                            listOfNotNull(
                                 stringResource(R.string.zone),
                                 stringResource(R.string.cmp_zone_energy),
                                 stringResource(R.string.cmp_zone_active),
                                 stringResource(R.string.cmp_zone_dist),
+                                if (showReserve) stringResource(R.string.cmp_zone_reserve)
+                                else null,
                             ),
                             header = true,
                             weights = w,
                         )
                         row.zones.forEach { z ->
                             TableRow(
-                                listOf(z.zone, kwh(z.kwh), zl(z.energy), zl(z.distribution)),
+                                listOfNotNull(
+                                    z.zone,
+                                    kwh(z.kwh),
+                                    zl(z.energy),
+                                    zl(z.distribution),
+                                    if (showReserve) z.reserveKwh?.let { kwh(it) } ?: "–" else null,
+                                ),
                                 weights = w,
                             )
                         }
