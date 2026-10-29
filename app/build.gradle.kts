@@ -25,7 +25,7 @@ android {
         applicationId = "com.theundefined.eanalizer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 34
+        versionCode = 35
         versionName = "0.1.31"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
