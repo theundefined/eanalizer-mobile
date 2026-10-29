@@ -364,7 +364,8 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                             r.fixedFees,
                             s,
                             energyCost = s?.energiaDoZaplaty ?: zones.sumOf { it.energy },
-                            distributionCost = s?.kosztDystrybucji ?: zones.sumOf { it.distribution },
+                            distributionCost =
+                                s?.kosztDystrybucji ?: zones.sumOf { it.distribution },
                             zones = zones,
                             totalKwh = r.zones.sumOf { it.poborZSieci },
                             coveredKwh =

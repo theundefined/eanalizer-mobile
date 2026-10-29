@@ -39,7 +39,9 @@ data class ComparisonRow(
     val energyCost: Double = 0.0,
     val distributionCost: Double = 0.0,
     val zones: List<ComparisonZone> = emptyList(),
-    /** Energy drawn from the grid, and (net-metering without deposit) the part covered by credit. */
+    /**
+     * Energy drawn from the grid, and (net-metering without deposit) the part covered by credit.
+     */
     val totalKwh: Double = 0.0,
     val coveredKwh: Double? = null,
 )
