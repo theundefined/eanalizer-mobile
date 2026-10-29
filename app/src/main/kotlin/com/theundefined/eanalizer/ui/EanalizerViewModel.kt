@@ -333,7 +333,47 @@ class EanalizerViewModel(application: Application) : AndroidViewModel(applicatio
                 Analyzer.compareTariffs(recs, 0.0, tariffs, ratio)
                     .map { r ->
                         val s = settle(r)
-                        ComparisonRow(r.tariff, s?.calkowityKoszt ?: r.totalCost, r.fixedFees, s)
+                        val zones =
+                            r.zones.map { z ->
+                                val zp =
+                                    tariffs.zones.firstOrNull {
+                                        it.tariff.equals(r.tariff, ignoreCase = true) &&
+                                            it.zoneName == z.zone
+                                    }
+                                val dist = zp?.distPrice ?: 0.0
+                                if (s != null)
+                                    ComparisonZone(
+                                        z.zone,
+                                        z.poborZSieci,
+                                        z.poborZSieci * (zp?.energyPrice ?: 0.0),
+                                        z.poborZSieci * dist,
+                                    )
+                                else {
+                                    val paid = z.energiaDoOplacenia ?: z.poborZSieci
+                                    ComparisonZone(
+                                        z.zone,
+                                        z.poborZSieci,
+                                        z.kosztPoboru - paid * dist,
+                                        paid * dist,
+                                    )
+                                }
+                            }
+                        ComparisonRow(
+                            r.tariff,
+                            s?.calkowityKoszt ?: r.totalCost,
+                            r.fixedFees,
+                            s,
+                            energyCost = s?.energiaDoZaplaty ?: zones.sumOf { it.energy },
+                            distributionCost = s?.kosztDystrybucji ?: zones.sumOf { it.distribution },
+                            zones = zones,
+                            totalKwh = r.zones.sumOf { it.poborZSieci },
+                            coveredKwh =
+                                if (s == null && r.zones.any { it.energiaDoOplacenia != null })
+                                    r.zones.sumOf {
+                                        it.poborZSieci - (it.energiaDoOplacenia ?: it.poborZSieci)
+                                    }
+                                else null,
+                        )
                     }
                     .sortedBy { it.totalCost }
             Analysis(

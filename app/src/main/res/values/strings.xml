@@ -119,6 +119,12 @@
 
     <!-- Compare -->
     <string name="compare_info">Koszt w wybranym okresie przy bieżących ustawieniach rozliczenia, bez symulowanego magazynu. Porównanie taryf z magazynem jest w szczegółach na ekranie magazynu.</string>
+    <string name="cmp_drawn">Pobrano z sieci łącznie</string>
+    <string name="cmp_covered_kwh">Pokryte z magazynu (net-metering)</string>
+    <string name="cmp_energy_active">Energia czynna</string>
+    <string name="cmp_zone_energy">Pobór</string>
+    <string name="cmp_zone_active">Energia</string>
+    <string name="cmp_zone_dist">Dystrybucja</string>
     <string name="cheapest">Najtańsza</string>
     <string name="difference">+%1$s</string>
 

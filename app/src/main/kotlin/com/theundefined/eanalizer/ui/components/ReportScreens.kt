@@ -4,10 +4,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -73,20 +75,42 @@ fun CompareScreen(state: UiState, viewModel: EanalizerViewModel, onBack: () -> U
                         )
                     else
                         MutedText(stringResource(R.string.difference, zl(row.totalCost - cheapest)))
+                    ValueRow(stringResource(R.string.cmp_drawn), kwh(row.totalKwh))
                     val nb = row.netBilling
                     if (nb != null) {
-                        ValueRow(stringResource(R.string.nb_energy_to_pay), zl(nb.energiaDoZaplaty))
-                        ValueRow(stringResource(R.string.nb_distribution), zl(nb.kosztDystrybucji))
+                        ValueRow(stringResource(R.string.nb_energy_cost), zl(nb.kosztEnergii))
+                        ValueRow(stringResource(R.string.nb_covered), zl(nb.pokryteDepozytem))
                     } else {
-                        ValueRow(
-                            stringResource(R.string.energy_cost),
-                            zl(row.totalCost - row.fixedFees)
-                        )
+                        row.coveredKwh?.let {
+                            ValueRow(stringResource(R.string.cmp_covered_kwh), kwh(it))
+                        }
                     }
+                    ValueRow(stringResource(R.string.cmp_energy_active), zl(row.energyCost))
+                    ValueRow(stringResource(R.string.nb_distribution), zl(row.distributionCost))
                     ValueRow(
                         stringResource(R.string.fixed_fees, a.result.months),
                         zl(row.fixedFees)
                     )
+                    if (row.zones.isNotEmpty()) {
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                        val w = listOf(1.2f, 1f, 1f, 1f)
+                        TableRow(
+                            listOf(
+                                stringResource(R.string.zone),
+                                stringResource(R.string.cmp_zone_energy),
+                                stringResource(R.string.cmp_zone_active),
+                                stringResource(R.string.cmp_zone_dist),
+                            ),
+                            header = true,
+                            weights = w,
+                        )
+                        row.zones.forEach { z ->
+                            TableRow(
+                                listOf(z.zone, kwh(z.kwh), zl(z.energy), zl(z.distribution)),
+                                weights = w,
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -117,6 +117,12 @@
 
     <!-- Compare -->
     <string name="compare_info">Cost in the selected period with the current settlement settings, without simulated storage. The tariff comparison with storage is in the details on the storage screen.</string>
+    <string name="cmp_drawn">Drawn from grid in total</string>
+    <string name="cmp_covered_kwh">Covered by credit (net metering)</string>
+    <string name="cmp_energy_active">Active energy</string>
+    <string name="cmp_zone_energy">Consumption</string>
+    <string name="cmp_zone_active">Energy</string>
+    <string name="cmp_zone_dist">Distribution</string>
     <string name="cheapest">Cheapest</string>
     <string name="difference">+%1$s</string>
 

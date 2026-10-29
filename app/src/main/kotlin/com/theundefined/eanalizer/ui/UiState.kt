@@ -35,6 +35,21 @@ data class ComparisonRow(
     val totalCost: Double,
     val fixedFees: Double,
     val netBilling: NetBillingResult?,
+    /** Variable energy cost (active energy) and distribution, without fixed fees. */
+    val energyCost: Double = 0.0,
+    val distributionCost: Double = 0.0,
+    val zones: List<ComparisonZone> = emptyList(),
+    /** Energy drawn from the grid, and (net-metering without deposit) the part covered by credit. */
+    val totalKwh: Double = 0.0,
+    val coveredKwh: Double? = null,
+)
+
+/** Volume and cost split of one tariff zone in the comparison. */
+data class ComparisonZone(
+    val zone: String,
+    val kwh: Double,
+    val energy: Double,
+    val distribution: Double,
 )
 
 /** Everything derived from records + prefs + tariffs for the selected period. */
