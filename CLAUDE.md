@@ -8,13 +8,13 @@ eAnalizer Mobile is a native Android app (Kotlin, Jetpack Compose/Material 3) th
 
 ## Commands
 
-The local toolchain (JDK 21 + Android SDK) lives outside the repo in `~/android-env/`. Always source it first:
+**Never run Gradle locally on the dev box — no build, test, `spotlessApply` or `spotlessCheck`** (the owner's rule: the 4 GB machine OOM-kills Gradle). Verify every change through CI: push (a branch/PR or `main`), then `gh run watch <id> --exit-status` and `gh run view <id> --log-failed`. Format Kotlin by hand in ktfmt kotlinlang style (4-space indent, 100 columns, trailing commas in multi-line lists); CI runs `spotlessCheck` first and its log shows the expected formatting.
+
+CI runs these commands (for reference only; `~/android-env/` has JDK 21 + SDK, but don't use it here):
 
 ```bash
-source ~/android-env/env.sh && ./gradlew assembleDebug
-source ~/android-env/env.sh && ./gradlew testDebugUnitTest            # single: --tests "com.theundefined.eanalizer.domain.AnalyzerTest"
-source ~/android-env/env.sh && ./gradlew spotlessApply                # ktfmt kotlinlang style; CI runs spotlessCheck
-source ~/android-env/env.sh && ./gradlew assembleRelease bundleRelease # needs RELEASE_* env vars, else debug signing
+./gradlew spotlessCheck testDebugUnitTest assembleDebug   # single test: --tests "com.theundefined.eanalizer.domain.AnalyzerTest"
+./gradlew assembleRelease bundleRelease                    # needs RELEASE_* env vars, else debug signing
 ```
 
 - Cut a release: `./release.sh [major|minor|patch|vX.Y.Z]` — bumps `versionName`/`versionCode` in `app/build.gradle.kts`, commits `release: vX.Y.Z`, pushes to `main`. Clean tree on `main` required. No local tagging.
@@ -87,4 +87,4 @@ Key rules:
 - **Backup**: two layers. (1) Android Auto Backup (`allowBackup=true`, `res/xml/backup_rules.xml` + `data_extraction_rules.xml`): only `files/enea/` and the plain `settings.xml` prefs — never the encrypted credentials (key is device-bound), cookies or the price cache. (2) In-app ZIP (Settings → Backup; `domain/BackupZip`, names validated on read): data files + `settings.json` (prefs, report prefs, tariffs, local-only). Restore never replaces a file with one that has fewer valid hours, and keeps file mtimes (mtime decides which overlapping file wins). Enea removes old data from eBOK, so downloaded files must never be deleted automatically. Keep `docs/privacy.html` and the Play data-safety answers in sync with this.
 - **Strings**: `res/values` = Polish (default), `res/values-en` = English. Keep both files in sync whenever UI copy is added or changed; no hard-coded UI text.
 - **Export**: share (`ACTION_SEND`) or save via SAF `CreateDocument`; XLSX written by the dependency-free `domain/XlsxWriter`. Sharing uses `FileProvider` (`${applicationId}.fileprovider`, `cacheDir/export/`) with `Intent.ACTION_SEND`.
-- Run `spotlessApply` before committing; CI fails on formatting.
+- Format by hand (ktfmt kotlinlang style) before committing — no local Gradle; CI fails on formatting.
